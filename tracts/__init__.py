@@ -13,7 +13,7 @@ from tracts import legacy_models
 from tracts import logs
 from tracts import legacy
 from tracts import driver
-
+from tracts import hybrid_pedigree
 
 run_tracts = driver.run_tracts
 show_INFO = logs.show_INFO

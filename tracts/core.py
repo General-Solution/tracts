@@ -15,7 +15,7 @@ _counter = 0
 
 def choose_model(migration_matrix, use_PTD=False):
     if use_PTD:
-        return PhaseTypeDistribution(migration_matrix)
+        return PhT_Monoecious(migration_matrix)
     return DemographicModel(migration_matrix)
 
 

@@ -33,7 +33,6 @@ def migration_matrix_D():
 
 
 def test_PDT_general(migration_matrix_A):
-    PTD = tracts.PhaseTypeDistribution(migration_matrix_A)
     # Verify that the equilibrium distribution is a valid probability vector
     assert min(PTD.equilibrium_distribution) >= 0
     assert numpy.isclose(numpy.linalg.norm(PTD.equilibrium_distribution, ord=1), 1)
@@ -94,7 +93,7 @@ class ModelComparison:
 
     def __init__(self, migration_matrix):
         self.migration_matrix = migration_matrix
-        self.PTD = tracts.PhaseTypeDistribution(migration_matrix)
+        self.PTD = tracts.PhT_Monoecious(migration_matrix)
         self.demo = tracts.DemographicModel(migration_matrix)
 
     def compare_proportions(self):
@@ -186,7 +185,7 @@ class ModelComparison:
 def compare_models_2(migration_matrix, Ls, population_number):
     # TODO: This compare_models_2 is performing a different verification frpm ModelComparison.compare_models_2.
     # Come up with better names for all the functions
-    PTD = tracts.PhaseTypeDistribution(migration_matrix)
+    PTD = tracts.PhT_Monoecious(migration_matrix)
     demo = tracts.DemographicModel(migration_matrix)
     tracts_z = demo.Z(Ls, population_number)
     phase_type_z = numpy.array([PTD.normalization_factor([L], PTD.transition_matrices[population_number],
@@ -227,7 +226,7 @@ def per_bin_noscale_integral(demographic_model: tracts.DemographicModel, bins, L
 def expectperbin_ratios(migration_matrix, bins, Ls, population_number):
     # TODO: This function is never used, consider removing it
     demo = tracts.DemographicModel(migration_matrix)
-    PTD = tracts.PhaseTypeDistribution(migration_matrix)
+    PTD = tracts.PhT_Monoecious(migration_matrix)
     demo_hist = lambda L: demo.expectperbin([L], population_number, bins)
     PTD_hist = lambda L: PTD.tractlength_histogram_windowed(population_number, bins, L)
     return numpy.array([numpy.sum(demo_hist(L)) / numpy.sum(PTD_hist(L)) for L in Ls])

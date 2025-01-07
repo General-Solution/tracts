@@ -15,7 +15,7 @@ def benchmark_PTD(migration_matrix, bins, Ls, runs):
     time_total = 0
     for run in range(runs):
         start = time()
-        PTD = tracts.PhaseTypeDistribution(migration_matrix)
+        PTD = tracts.PhT_Monoecious(migration_matrix)
         PTD_hists = [PTD.tractlength_histogram_multi_windowed(population_number, bins, Ls) for population_number in
                      range(len(migration_matrix[0]))]
         if run == 0:
