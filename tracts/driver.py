@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy
 import ruamel.yaml
 
-from tracts import Population, PhaseTypeDistribution, optimize_cob
+from tracts import Population, PhT_Monoecious, optimize_cob
 from tracts.parametrized_demography import ParametrizedDemography
 
 logger = logging.getLogger(__name__)
@@ -203,7 +203,7 @@ def randomize(arr, a, b):
 
 
 def run_model_multi_params(model_func, bound_func, population, population_labels, start_params_list,
-                           exclude_tracts_below_cM=0, modelling_method=PhaseTypeDistribution):
+                           exclude_tracts_below_cM=0, modelling_method=PhT_Monoecious): 
     optimal_params = []
     likelihoods = []
     for start_params in start_params_list:
@@ -217,7 +217,7 @@ def run_model_multi_params(model_func, bound_func, population, population_labels
 
 
 def run_model(model_func, bound_func, population, population_labels, startparams, exclude_tracts_below_cM=0,
-              modelling_method=PhaseTypeDistribution):
+              modelling_method=PhT_Monoecious):
     Ls = population.Ls
     nind = population.nind
     bins, data = population.get_global_tractlengths(npts=50, exclude_tracts_below_cM=exclude_tracts_below_cM)
@@ -250,7 +250,7 @@ def output_simulation_data(sample_population, optimal_params, model: Parametrize
         for population in model.population_indices.keys():
             fdat.write("\t".join(map(str, data[population])) + "\n")
 
-    optimal_model = PhaseTypeDistribution(model.get_migration_matrix(optimal_params))
+    optimal_model = PhT_Monoecious(model.get_migration_matrix(optimal_params))
 
     with open(output_dir + output_filename_format.format(label='migration_matrix'), 'w') as fmig2:
         for line in optimal_model.migration_matrix:
