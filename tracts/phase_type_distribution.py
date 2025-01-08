@@ -7,9 +7,21 @@ import warnings
 from scipy import sparse
 from functools import reduce
 from sklearn.preprocessing import normalize
+import time
 
 warnings.filterwarnings("ignore")
-import time
+
+
+def get_survival_factors(migration_matrix):
+    """
+    Takes a migration matrix of generations T and returns a list of length T,
+    which is the probability of a migrant allele from that generation surviving to the present
+    """
+    survival_factors = np.ones(len(migration_matrix))
+    for generation_number in range(1, len(migration_matrix)):
+        survival_factors[generation_number] = survival_factors[generation_number - 1] * (
+                1 - sum(migration_matrix[generation_number - 1]))
+    return survival_factors
 
 
 class PhaseTypeDistribution:
@@ -19,50 +31,56 @@ class PhaseTypeDistribution:
     """
 
     def __init__(self, max_remaining_tracts=1e-5):
-
+        self.maxLen = None
+        self.num_populations = None
+        self.migration_matrix = None
+        self.inverse_S0_list_m = None
+        self.t0_proportions = None
+        self.inverse_S0_list = None
+        self.prop_at_1 = None
+        self.X_chr = None
+        self.m_prop_at_2 = None
+        self.m_prop_at_1 = None
+        self.f_prop_at_2 = None
+        self.f_prop_at_1 = None
+        self.S0_list_f = None
+        self.alpha_list_f = None
+        self.transition_matrices_f = None
+        self.S0_list_m = None
+        self.alpha_list_m = None
+        self.X_chr_male = None
+        self.S0_list = None
+        self.transition_matrices_m = None
+        self.alpha_list = None
+        self.transition_matrices = None
+        self.sex_specific_admixture = None
+        self.inverse_S0_list_f = None
         self.max_remaining_tracts = max_remaining_tracts
 
-    def get_survival_factors(self, migration_matrix):
-        """
-        Takes a migration matrix of generations T and returns a list of length T,
-        which is the probability of a migrant allele from that generation surviving to the present
-        """
-        survival_factors = np.ones(len(migration_matrix))
-        for generation_number in range(1, len(migration_matrix)):
-            survival_factors[generation_number] = survival_factors[generation_number - 1] * (
-                    1 - sum(migration_matrix[generation_number - 1]))
-        return survival_factors
-
     def PhT_density(self, x, population_number, s1=None):
-
+        f_f = 0.0
+        f_m = 0.0
         if not self.sex_specific_admixture:
-
             transition_matrix = self.transition_matrices[population_number]
             alpha = self.alpha_list[population_number]
             #alpha = [1 / (len(transition_matrix))] * (len(transition_matrix))
             return float(np.real(
                 np.dot(np.dot(alpha, scipy.linalg.expm(x * transition_matrix)), self.S0_list[population_number])))
-
-        else:
-
-            if s1 == 0 or s1 is None:
-                transition_matrix_m = self.transition_matrices_m[population_number]
-                alpha_m = self.alpha_list_m[population_number]
-                f_m = float(np.real(np.dot(np.dot(alpha_m, scipy.linalg.expm(x * transition_matrix_m)),
-                                           self.S0_list_m[population_number])))
-
-            if s1 == 1 or s1 is None:
-                transition_matrix_f = self.transition_matrices_f[population_number]
-                alpha_f = self.alpha_list_f[population_number]
-                f_f = float(np.real(np.dot(np.dot(alpha_f, scipy.linalg.expm(x * transition_matrix_f)),
-                                           self.S0_list_f[population_number])))
-
-            if self.X_chr_male or s1 == 1:
-                return f_f
-            elif s1 == 0:
-                return f_m
-            else:
-                return 0.5 * (f_f + f_m)
+        if s1 == 0 or s1 is None:
+            transition_matrix_m = self.transition_matrices_m[population_number]
+            alpha_m = self.alpha_list_m[population_number]
+            f_m = float(np.real(np.dot(np.dot(alpha_m, scipy.linalg.expm(x * transition_matrix_m)),
+                                       self.S0_list_m[population_number])))
+        if s1 == 1 or s1 is None:
+            transition_matrix_f = self.transition_matrices_f[population_number]
+            alpha_f = self.alpha_list_f[population_number]
+            f_f = float(np.real(np.dot(np.dot(alpha_f, scipy.linalg.expm(x * transition_matrix_f)),
+                                       self.S0_list_f[population_number])))
+        if self.X_chr_male or s1 == 1:
+            return f_f
+        if s1 == 0:
+            return f_m
+        return 0.5 * (f_f + f_m)
 
     def PhT_density_windowed(self, population_number, S, alpha, S0_inv, bins: npt.ArrayLike, L: float, s1=None,
                              exp_Sx_per_bin: npt.ArrayLike = None):
@@ -75,7 +93,8 @@ class PhaseTypeDistribution:
         bins = bins[bins <= L]  # Truncate to [0, L], where the distribution is supported
         bins = np.sort(bins)
         ET = float(np.real(-np.dot(alpha, S0_inv)))
-        Z = ET + L  # Normalization factor
+        # Normalization factor
+        Z = ET + L
         ETL = L * ET / Z
 
         if self.sex_specific_admixture:
@@ -91,89 +110,67 @@ class PhaseTypeDistribution:
             prob_ad_f_1, prob_ad_m_1 = prob_ad_f_1 / norm_f_1, prob_ad_m_1 / norm_m_1
             prob_mig_f_2, prob_mig_m_2 = prob_mig_f_2 / norm_f_2, prob_mig_m_2 / norm_m_2
             prob_ad_f_2, prob_ad_m_2 = prob_ad_f_2 / norm_f_2, prob_ad_m_2 / norm_m_2
-
             if s1 == 0:
-
                 if self.X_chr:
-
                     prop_isolated = prob_mig_m_1 + prob_mig_f_2 * prob_ad_m_1
                     prop_connected = prob_ad_m_1 * prob_ad_f_2
-
                 else:
-
                     prop_isolated = prob_mig_m_1
                     prop_connected = prob_ad_m_1
-
             else:
-
                 prop_isolated = prob_mig_f_1
                 prop_connected = prob_ad_f_1
         else:
-
             prob_mig_1 = self.prop_at_1[population_number]
             prob_ad_1 = 1 - np.sum(self.prop_at_1)
             norm_1 = prob_mig_1 + prob_ad_1
             prob_mig_1 = prob_mig_1 / norm_1
             prob_ad_1 = prob_ad_1 / norm_1
-
             prop_isolated = prob_mig_1
             prop_connected = prob_ad_1
-
         ETL = prop_connected * ETL + prop_isolated * L
-
         if not np.isclose(prop_isolated + prop_connected, 1):
             raise Exception('Probabilities of initial hyper-states do not sum up to one.')
-
         density_values = np.zeros(len(bins))
-
         for bin_number, bin_val in enumerate(bins):
-
             if exp_Sx_per_bin is None:
                 exp_Sx = scipy.linalg.expm(bin_val * S)
             else:
                 exp_Sx = exp_Sx_per_bin[bin_number]
             if bin_val < L:
                 density_values[bin_number] = prop_connected * float(np.real(
-                    2 * (1 - self.PhT_CDF(bin_val, population_number, s1)) + (L - bin_val) * self.PhT_density(bin_val,
-                                                                                                              population_number,
-                                                                                                              s1))) / Z
+                    2 * (1 - self.PhT_CDF(bin_val, population_number, s1)) +
+                    (L - bin_val) * self.PhT_density(bin_val, population_number, s1))) / Z
             else:
                 density_admixed_at_2 = float(np.real(
-                    2 * (1 - self.PhT_CDF(bin_val, population_number, s1)) + (L - bin_val) * self.PhT_density(bin_val,
-                                                                                                              population_number,
-                                                                                                              s1) + np.dot(
+                    2 * (1 - self.PhT_CDF(bin_val, population_number, s1)) +
+                    (L - bin_val) * self.PhT_density(bin_val, population_number, s1) + np.dot(
                         np.dot(alpha, exp_Sx), L - S0_inv) - L * (1 - self.PhT_CDF(L, population_number, s1))))
                 density_values[bin_number] = prop_connected * density_admixed_at_2 / Z + prop_isolated
 
                 return bins, density_values, ETL
 
     def PhT_CDF(self, x, population_number, s1=None) -> npt.ArrayLike:
-
         if not self.sex_specific_admixture:
-
             transition_matrix = self.transition_matrices[population_number]
             alpha = self.alpha_list[population_number]
             #alpha = [1 / (len(transition_matrix))] * (len(transition_matrix))
             return 1 - float(np.real(np.sum(np.dot(alpha, scipy.linalg.expm(x * transition_matrix)))))
-
-        else:
-
-            if s1 == 1 or s1 is None:
-                transition_matrix_f = self.transition_matrices_f[population_number]
-                alpha_f = self.alpha_list_f[population_number]
-                F_f = 1 - float(np.real(np.sum(np.dot(alpha_f, scipy.linalg.expm(x * transition_matrix_f)))))
-
-            if s1 == 0 or s1 is None:
-                transition_matrix_m = self.transition_matrices_m[population_number]
-                alpha_m = self.alpha_list_m[population_number]
-                F_m = 1 - float(np.real(np.sum(np.dot(alpha_m, scipy.linalg.expm(x * transition_matrix_m)))))
-
-            if self.X_chr_male or s1 == 1:
-                return F_f
-            elif s1 == 0:
-                return F_m
-            else:
-                return 0.5 * (F_f + F_m)
+        F_f = 0.0
+        F_m = 0.0
+        if s1 == 1 or s1 is None:
+            transition_matrix_f = self.transition_matrices_f[population_number]
+            alpha_f = self.alpha_list_f[population_number]
+            F_f = 1 - float(np.real(np.sum(np.dot(alpha_f, scipy.linalg.expm(x * transition_matrix_f)))))
+        if s1 == 0 or s1 is None:
+            transition_matrix_m = self.transition_matrices_m[population_number]
+            alpha_m = self.alpha_list_m[population_number]
+            F_m = 1 - float(np.real(np.sum(np.dot(alpha_m, scipy.linalg.expm(x * transition_matrix_m)))))
+        if self.X_chr_male or s1 == 1:
+            return F_f
+        if s1 == 0:
+            return F_m
+        return 0.5 * (F_f + F_m)
 
     def PhT_CDF_windowed(self, S, alpha, S0_inv, bins: npt.ArrayLike, L: float, s1: float, pop_number: int,
                          exp_Sx_per_bin: npt.ArrayLike = None, ) -> npt.ArrayLike:
@@ -279,20 +276,22 @@ class PhaseTypeDistribution:
                                        return_only=None) -> npt.ArrayLike:
         """Calculates the tractlength histogram on a window L
         """
-
         if return_only == 0 and self.X_chr_male:
             raise Exception('X chromosome is not paternally inherited. Set return_only to 1 or None.')
-
+        newbins = None
+        density_per_bin_f = 0.0
+        density_per_bin_m = 0.0
+        ETL_m = 0.0
+        ETL_f = 0.0
+        normalized_CDF_f = 0.0
+        normalized_CDF_m = 0.0
         # Monoecious model
         if not self.sex_specific_admixture:
-
             #scale = self.scaling_factor[population_number]
             S = self.transition_matrices[population_number]
             alpha = self.alpha_list[population_number]
             S0_inv = self.inverse_S0_list[population_number]
-
             if density:
-
                 newbins, density_per_bin, ETL = self.PhT_density_windowed(population_number=population_number,
                                                                           S=S,
                                                                           alpha=alpha,
@@ -303,116 +302,83 @@ class PhaseTypeDistribution:
                 if not np.all(np.isreal(density_per_bin)):
                     print(f'Density is complex.\n{density_per_bin}')
                 return newbins, scale * density_per_bin, ETL
+            normalized_CDF, ET, Z, ETL = self.PhT_CDF_windowed(S=S,
+                                                               alpha=alpha, S0_inv=S0_inv,
+                                                               bins=bins, L=L,
+                                                               exp_Sx_per_bin=exp_Sx_per_bin,
+                                                               s1=0xDEADBEEF,
+                                                               pop_number=population_number)
+            if not np.all(np.isreal(normalized_CDF)):
+                print(f'CDF is complex.\n{normalized_CDF}')
+                # = self.normalization_factor(L, S, S0_inv, alpha) # Add test to compare Z and Zint
+            scale = 2 * self.t0_proportions[population_number] * L / ETL
+            return np.real(np.diff(normalized_CDF) * scale), ETL
 
-            else:
-
-                normalized_CDF, ET, Z, ETL = self.PhT_CDF_windowed(S=S,
-                                                                   alpha=alpha, S0_inv=S0_inv,
-                                                                   bins=bins, L=L,
-                                                                   exp_Sx_per_bin=exp_Sx_per_bin,
-                                                                   s1=0xDEADBEEF,
-                                                                   pop_number=population_number)
-                if not np.all(np.isreal(normalized_CDF)):
-                    print(f'CDF is complex.\n{normalized_CDF}')
-                    # = self.normalization_factor(L, S, S0_inv, alpha) # Add test to compare Z and Zint
-                scale = 2 * self.t0_proportions[population_number] * L / ETL
-
-                return np.real(np.diff(normalized_CDF) * scale), ETL
-
-        else:
-
-            if self.X_chr_male:
-                return_only = 1
-
-            if return_only == 0 or return_only is None:
-
-                S_m = self.transition_matrices_m[population_number]
-                alpha_m = self.alpha_list_m[population_number]
-                S0_inv_m = self.inverse_S0_list_m[population_number]
-
-                if density:
-
-                    newbins, density_per_bin_m, ETL_m = self.PhT_density_windowed(population_number, S_m, alpha_m,
-                                                                                  S0_inv_m, bins, L, s1=0)
-                    if not np.all(np.isreal(density_per_bin_m)):
-                        print('Density is complex.')
-
-                else:
-
-                    normalized_CDF_m, ET_m, Z_m, ETL_m = self.PhT_CDF_windowed(S=S_m,
-                                                                               alpha=alpha_m,
-                                                                               S0_inv=S0_inv_m, bins=bins, L=L,
-                                                                               exp_Sx_per_bin=exp_Sx_per_bin_m,
-                                                                               s1=0,
-                                                                               pop_number=population_number)
-
-            if return_only == 1 or return_only is None:
-
-                S_f = self.transition_matrices_f[population_number]
-                alpha_f = self.alpha_list_f[population_number]
-                S0_inv_f = self.inverse_S0_list_f[population_number]
-
-                if density:
-
-                    newbins, density_per_bin_f, ETL_f = self.PhT_density_windowed(population_number, S_f, alpha_f,
-                                                                                  S0_inv_f, bins, L, s1=1)
-                    if not np.all(np.isreal(density_per_bin_f)):
-                        print('Density is complex.')
-
-                else:
-
-                    normalized_CDF_f, ET_f, Z_f, ETL_f = self.PhT_CDF_windowed(S=S_f, alpha=alpha_f, S0_inv=S0_inv_f,
-                                                                               bins=bins, L=L,
-                                                                               exp_Sx_per_bin=exp_Sx_per_bin_f, s1=1,
-                                                                               pop_number=population_number)
-
+        if self.X_chr_male:
+            return_only = 1
+        if return_only == 0 or return_only is None:
+            S_m = self.transition_matrices_m[population_number]
+            alpha_m = self.alpha_list_m[population_number]
+            S0_inv_m = self.inverse_S0_list_m[population_number]
             if density:
-
-                if return_only is None and not self.X_chr_male:
-
-                    scale = 4 * self.t0_proportions[population_number] * L / (ETL_m + ETL_f) if freq else 1
-
-                    return newbins, scale * (density_per_bin_f + density_per_bin_m) / 2, 0.5 * (ETL_m + ETL_f)
-
-                elif return_only == 0 and not self.X_chr_male:
-
-                    scale = self.t0_proportions[population_number] * L / ETL_m if freq else 1
-                    return newbins, scale * density_per_bin_m, ETL_m
-
-                else:
-
-                    scale = self.t0_proportions[population_number] * L / ETL_f if freq else 1
-                    return newbins, scale * density_per_bin_f, ETL_f
-
+                newbins, density_per_bin_m, ETL_m = self.PhT_density_windowed(population_number, S_m, alpha_m,
+                                                                              S0_inv_m, bins, L, s1=0)
+                if not np.all(np.isreal(density_per_bin_m)):
+                    print('Density is complex.')
             else:
+                normalized_CDF_m, ET_m, Z_m, ETL_m = self.PhT_CDF_windowed(S=S_m,
+                                                                           alpha=alpha_m,
+                                                                           S0_inv=S0_inv_m, bins=bins, L=L,
+                                                                           exp_Sx_per_bin=exp_Sx_per_bin_m,
+                                                                           s1=0,
+                                                                           pop_number=population_number)
+        if return_only == 1 or return_only is None:
+            S_f = self.transition_matrices_f[population_number]
+            alpha_f = self.alpha_list_f[population_number]
+            S0_inv_f = self.inverse_S0_list_f[population_number]
+            if density:
+                newbins, density_per_bin_f, ETL_f = self.PhT_density_windowed(population_number, S_f, alpha_f,
+                                                                              S0_inv_f, bins, L, s1=1)
+                if not np.all(np.isreal(density_per_bin_f)):
+                    print('Density is complex.')
+            else:
+                normalized_CDF_f, ET_f, Z_f, ETL_f = self.PhT_CDF_windowed(S=S_f, alpha=alpha_f, S0_inv=S0_inv_f,
+                                                                           bins=bins, L=L,
+                                                                           exp_Sx_per_bin=exp_Sx_per_bin_f, s1=1,
+                                                                           pop_number=population_number)
+        if density:
+            if return_only is None and not self.X_chr_male:
+                scale = 4 * self.t0_proportions[population_number] * L / (ETL_m + ETL_f) if freq else 1
+                return newbins, scale * (density_per_bin_f + density_per_bin_m) / 2, 0.5 * (ETL_m + ETL_f)
+            elif return_only == 0 and not self.X_chr_male:
+                scale = self.t0_proportions[population_number] * L / ETL_m if freq else 1
+                return newbins, scale * density_per_bin_m, ETL_m
+            else:
+                scale = self.t0_proportions[population_number] * L / ETL_f if freq else 1
+                return newbins, scale * density_per_bin_f, ETL_f
+        else:
+            if return_only is None and not self.X_chr_male:
+                normalized_CDF = 0.5 * (normalized_CDF_f + normalized_CDF_m)
+                scale = 4 * self.t0_proportions[population_number] * L / (ETL_f + ETL_m)
+                E = (ETL_f + ETL_m) / 2
+            elif return_only == 0 and not self.X_chr_male:
+                normalized_CDF = normalized_CDF_m
+                scale = self.t0_proportions[population_number] * L / ETL_m
+                E = ETL_m
+            else:
+                normalized_CDF = normalized_CDF_f
+                scale = self.t0_proportions[population_number] * L / ETL_m
+                E = ETL_m
+            if not np.all(np.isreal(normalized_CDF)):
+                print(f'CDF is complex.\n{normalized_CDF}')
+            return np.real(np.diff(normalized_CDF) * scale), E
 
-                if return_only is None and not self.X_chr_male:
-
-                    normalized_CDF = 0.5 * (normalized_CDF_f + normalized_CDF_m)
-                    scale = 4 * self.t0_proportions[population_number] * L / (ETL_f + ETL_m)
-                    E = (ETL_f + ETL_m) / 2
-
-                elif return_only == 0 and not self.X_chr_male:
-
-                    normalized_CDF = normalized_CDF_m
-                    scale = self.t0_proportions[population_number] * L / ETL_m
-                    E = ETL_m
-                else:
-
-                    normalized_CDF = normalized_CDF_f
-                    scale = self.t0_proportions[population_number] * L / ETL_m
-                    E = ETL_m
-                if not np.all(np.isreal(normalized_CDF)):
-                    print(f'CDF is complex.\n{normalized_CDF}')
-
-                return np.real(np.diff(normalized_CDF) * scale), E
-
-    def tractlength_histogram_multi_windowed(self, population_number: int, bins: npt.ArrayLike,
-                                             chrom_lengths: npt.ArrayLike) -> npt.ArrayLike:
-        """Calculates the tractlength histogram on multiple chromosomes of lengths [chrom_lengths]
+    def tract_length_histogram_multi_windowed(self, population_number: int, bins: npt.ArrayLike,
+                                              chrom_lengths: npt.ArrayLike) -> npt.ArrayLike:
+        """Calculates the tract length histogram on multiple chromosomes of lengths [chrom_lengths]
         """
         histogram = np.zeros(len(bins))
-
+        scale = None
         if not self.sex_specific_admixture:
             exp_Sx_per_bin_f, exp_Sx_per_bin_m = None, None
             S = self.transition_matrices[population_number]
@@ -500,21 +466,6 @@ class PhaseTypeDistribution:
             print(f'Migration matrix:\n{self.migration_matrix}')
         return np.real(full_val)
 
-    def full_PDF(self, L, S, exp_SL=None, alpha=None, S0_inv=None):
-        """ The expected fraction of full-chromosome tracts, p. 63 May 24,
-            2011. """
-        if exp_SL is None:
-            exp_SL = scipy.linalg.expm(L * S)
-        if alpha is None:
-            alpha = np.ones(len(S)) / len(S)
-        if S0_inv is None:
-            S0_inv = np.linalg.inv(S).sum(1)
-        full_val = -np.dot(alpha, np.dot(exp_SL, S0_inv))
-        if not np.all(np.isreal(full_val)):
-            print(f'full_PDF is complex.\n{full_val}')
-            print(f'Migration matrix:\n{self.migration_matrix}')
-        return np.real(full_val)
-
     def loglik(self, bins, Ls, data, num_samples, cutoff=0):
         """ Calculate the maximum-likelihood in a Poisson Random Field. Last
             bin of data is the number of whole-chromosome. """
@@ -527,7 +478,7 @@ class PhaseTypeDistribution:
         predicted_tractlength_histogram = None
         pop = None
         for pop in range(self.num_populations):
-            predicted_tractlength_histogram = self.tractlength_histogram_multi_windowed(pop, bins, Ls)
+            predicted_tractlength_histogram = self.tract_length_histogram_multi_windowed(pop, bins, Ls)
             # print(f'pop: {pop}, models: {models}')
             # print(f'data: {data}')
         # TODO: Only use the last value of predicted_tractlength_histogram?
@@ -541,16 +492,14 @@ class PhaseTypeDistribution:
 
 ###################
 
-class PhT_Monoecious(PhaseTypeDistribution):
+class PhTMonoecious(PhaseTypeDistribution):
     """
     A subclass of PhaseTypeDistribution providing the
     specific Phase-Type tools for the Monoecious Markov approximation
     """
 
     def __init__(self, migration_matrix, rho=1):
-
-        super().__init__(self)
-
+        super().__init__()
         # State monoecious approximation
         self.sex_specific_admixture = False
 
@@ -559,7 +508,8 @@ class PhT_Monoecious(PhaseTypeDistribution):
         # Check that migration matrix is well-specified
         if np.sum(np.abs(self.migration_matrix[0, :])) > 0:
             warnings.warn(
-                'Source populations cannot contribute to the admixted population at generation 0. Contributions at generation 0 will be ignored.')
+                'Source populations cannot contribute to the admixted population at generation 0. '
+                'Contributions at generation 0 will be ignored.')
             self.migration_matrix[0, :] = 0
         if np.sum(np.abs(self.migration_matrix[-1, :])) < 1:
             raise Exception(
@@ -570,7 +520,7 @@ class PhT_Monoecious(PhaseTypeDistribution):
 
             #self.max_remaining_tracts = max_remaining_tracts
         self.num_populations = self.migration_matrix.shape[1]
-        self.survival_factors = self.get_survival_factors(migration_matrix)
+        self.survival_factors = get_survival_factors(migration_matrix)
         self.prop_at_1 = migration_matrix[1, :].copy()
 
         self.num_generations = len(self.migration_matrix)
@@ -668,7 +618,7 @@ class PhT_Monoecious(PhaseTypeDistribution):
                              np.isclose(eigenvalue, 0)][0]
             result_vector = result_vector / np.linalg.norm(result_vector, ord=1)
             return result_vector
-        except IndexError as e:
+        except IndexError as _:
             raise Exception(
                 'Equilibrium distribution could not be calculated. The transition matrix does not have a 0 eigenvalue.')
 
@@ -691,7 +641,7 @@ class PhT_Monoecious(PhaseTypeDistribution):
         return self.survival_factors[t] / self.survival_factors[Tau + 1] * self.migration_matrix[t, pop]
 
 
-class PhT_Dioecious(PhaseTypeDistribution):
+class PhTDioecious(PhaseTypeDistribution):
     """
     A subclass of PhaseTypeDistribution providing the
     specific Phase-Type tools for the Monoecious Markov approximation
@@ -699,7 +649,7 @@ class PhT_Dioecious(PhaseTypeDistribution):
 
     def __init__(self, migration_matrix_f, migration_matrix_m, rho_f, rho_m, X_chromosome_male=False, sex_model='DC',
                  X_chromosome=False, TPED=0, setting_TP=None):
-        super().__init__(self)
+        super().__init__()
 
         # State dioecious approximation
         self.sex_specific_admixture = True
@@ -714,11 +664,13 @@ class PhT_Dioecious(PhaseTypeDistribution):
 
         if np.any(np.sum(migration_matrix_m, axis=1)) > 1 or np.any(np.sum(migration_matrix_f, axis=1) > 1):
             raise Exception(
-                'Migration matrices are not well-specified. Contributions must sum up to a value <= 1 at each generation.')
+                'Migration matrices are not well-specified. '
+                'Contributions must sum up to a value <= 1 at each generation.')
 
         if np.sum(np.abs(migration_matrix_m[0, :])) > 0 or np.sum(np.abs(migration_matrix_f[0, :])) > 0:
             warnings.warn(
-                'Source populations cannot contribute to the admixted population at generation 0. Contributions at generation 0 will be ignored.')
+                'Source populations cannot contribute to the admixted population at generation 0. '
+                'Contributions at generation 0 will be ignored.')
             migration_matrix_m[0, :] = 0
             migration_matrix_f[0, :] = 0
 
@@ -728,7 +680,7 @@ class PhT_Dioecious(PhaseTypeDistribution):
 
         self.num_generations = migration_matrix_f.shape[0]
         self.num_populations = migration_matrix_f.shape[1]
-        self.survival_factors = self.get_survival_factors(0.5 * (migration_matrix_f + migration_matrix_m))
+        self.survival_factors = get_survival_factors(0.5 * (migration_matrix_f + migration_matrix_m))
         self.t0_proportions = np.sum(
             (0.5 * (migration_matrix_f + migration_matrix_m)) * np.transpose(self.survival_factors)[:, np.newaxis],
             axis=0)
@@ -775,11 +727,11 @@ class PhT_Dioecious(PhaseTypeDistribution):
         # This is S*(1^T), which shows up in the probability density function.
         try:
             self.S0_list_f = [-np.sum(transition_matrix, axis=1) for transition_matrix in self.transition_matrices_f]
-        except:
+        except Exception as _:
             self.S0_list_f = []
         try:
             self.S0_list_m = [-np.sum(transition_matrix, axis=1) for transition_matrix in self.transition_matrices_m]
-        except:
+        except Exception as _:
             self.S0_list_m = []
 
         # Row sum of inverse of the transition submatrix.
@@ -788,13 +740,13 @@ class PhT_Dioecious(PhaseTypeDistribution):
             self.inverse_S0_list_f = [
                 np.sum(np.linalg.inv(transition_matrix), axis=1) if len(transition_matrix) > 0 else np.array([]) for
                 transition_matrix in self.transition_matrices_f]
-        except:
+        except Exception as _:
             self.inverse_S0_list_f = []
         try:
             self.inverse_S0_list_m = [
                 np.sum(np.linalg.inv(transition_matrix), axis=1) if len(transition_matrix) > 0 else np.array([]) for
                 transition_matrix in self.transition_matrices_m]
-        except:
+        except Exception as _:
             self.inverse_S0_list_m = []
 
     def discrete_prob_DF(self, pulses, state_left, state_right, T_ped=0):
@@ -823,7 +775,7 @@ class PhT_Dioecious(PhaseTypeDistribution):
 
             rec_time = int(comp_times[0])
             vec_fm = np.concatenate([np.array([True]), (
-                        (state_right[~np.isnan(state_right)][4:] - state_right[~np.isnan(state_right)][3:-1]) == 1)])
+                    (state_right[~np.isnan(state_right)][4:] - state_right[~np.isnan(state_right)][3:-1]) == 1)])
             vec_fm = vec_fm + 0.5 * (1 - vec_fm)
 
             if not self.X_chr:
@@ -925,7 +877,7 @@ class PhT_Dioecious(PhaseTypeDistribution):
 
             # Find or append the coarse state
             mask = (pulses_copy[:, 0] == pop_state) & (pulses_copy[:, 1] == t_state) & (
-                        pulses_copy[:, 2] == delta_state)
+                    pulses_copy[:, 2] == delta_state)
             coarse_index = np.where(mask)[0]
             if coarse_index.size > 0:
                 coarse_states[k] = coarse_index[0]
@@ -1049,7 +1001,8 @@ class PhT_Dioecious(PhaseTypeDistribution):
 
         T = np.shape(self.migration_matrix_f)[0]
         NP = np.shape(self.migration_matrix_f)[1]
-
+        states_at_TP = None
+        states_after_TP = None
         if pulses is None:
             ind_f = np.where(self.migration_matrix_f != 0)
             ind_m = np.where(self.migration_matrix_m != 0)
@@ -1059,7 +1012,9 @@ class PhT_Dioecious(PhaseTypeDistribution):
             pulses[:, 2] = np.concatenate([np.zeros(len(ind_m[0])), np.ones(len(ind_f[0]))])
             pulses[:, 3] = np.concatenate([self.migration_matrix_m[ind_m], self.migration_matrix_f[ind_f]])
 
-        # Remove pulses at generation t=1 if they exist. These pulses are taken into account a posteriori, when phase-type densities are computed on the finite chromosome.     
+        # Remove pulses at generation t=1 if they exist.
+        # These pulses are taken into account a posteriori,
+        # when phase-type densities are computed on the finite chromosome.
         pulses = pulses[pulses[:, 1] > 1, :]
 
         sex_comb = np.concatenate(
@@ -1083,8 +1038,8 @@ class PhT_Dioecious(PhaseTypeDistribution):
             states = states[~((last_sex == 0) * (states[:, 1] == 0)), :]
             states = states[np.nansum(states[:, 3:], axis=1) > 0, :]  # Remove states with s = (m)
             if parent_sex == 0:
-                pulses = pulses[pulses[:, 1] > 2,
-                         :]  # Pulses at t = 2 if xi = 0 are taken into account in a different sub-model
+                # Pulses at t = 2 if xi = 0 are taken into account in a different sub-model
+                pulses = pulses[pulses[:, 1] > 2, :]
 
         if T_pedigree > 0 and migration_setting_at_TP is not None:
 
@@ -1128,7 +1083,8 @@ class PhT_Dioecious(PhaseTypeDistribution):
                 return np.array([np.nan]), np.array([np.nan]), np.array([np.nan]), np.array([np.nan])
             else:
                 states = np.concatenate([states_after_TP,
-                                         states_at_TP]) if s_admixed * s_TP else states_after_TP if s_admixed else states_at_TP
+                                         states_at_TP]) \
+                    if s_admixed * s_TP else states_after_TP if s_admixed else states_at_TP
                 if len(states) == 1:
                     return np.array([np.nan]), np.sort(np.unique(states[:, 0])), np.array([np.nan]), np.array([np.nan])
 
@@ -1151,9 +1107,10 @@ class PhT_Dioecious(PhaseTypeDistribution):
                 eq_dist = np.asarray([eigenvector for eigenvalue, eigenvector in
                                       zip(transition_matrix_eigs[0], np.transpose(transition_matrix_eigs[1])) if
                                       np.isclose(eigenvalue, 0)][0]).flatten()
-            except IndexError as e:
+            except IndexError as _:
                 raise Exception(
-                    'Equilibrium distribution could not be calculated. The transition matrix does not have a 0 eigenvalue.')
+                    'Equilibrium distribution could not be calculated. '
+                    'The transition matrix does not have a 0 eigenvalue.')
 
             # Compute initial state alpha
             alpha_list = [np.asarray(np.dot(eq_dist[states[:, 0] != tract_pop], S[states[:, 0] != tract_pop, :][:,
