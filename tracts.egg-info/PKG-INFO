@@ -21,7 +21,8 @@ Requires-Dist: sphinx-autodoc-typehints>=1.12.0
 Requires-Dist: sphinxcontrib-napoleon>=0.7
 Requires-Dist: sphinx-book-theme>=1.0.0
 Requires-Dist: pytest
-Requires-Dist: sklearn
+Requires-Dist: scikit-learn
+Requires-Dist: pandas
 
 Tracts
 ======

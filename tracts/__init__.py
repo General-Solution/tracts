@@ -6,7 +6,7 @@ from tracts.chromosome import Chrom, Chropair
 from tracts.composite_demographic_model import CompositeDemographicModel
 from tracts.demographic_model import DemographicModel
 from tracts.haploid import Haploid
-from tracts.phase_type_distribution import PhaseTypeDistribution
+from tracts.phase_type_distribution import PhT_Monoecious
 from tracts.util import eprint
 from tracts.parametrized_demography import ParametrizedDemography
 from tracts import legacy_models

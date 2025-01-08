@@ -8,4 +8,4 @@ sphinxcontrib-napoleon>=0.7
 sphinx-book-theme>=1.0.0
 pytest
 scikit-learn
-
+pandas

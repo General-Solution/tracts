@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy
 import ruamel.yaml
 
-from tracts import Population, PhaseTypeDistribution, optimize_cob
+from tracts import Population, PhT_Monoecious, optimize_cob
 from tracts.parametrized_demography import ParametrizedDemography
 
 logger = logging.getLogger(__name__)
@@ -203,7 +203,7 @@ def randomize(arr, a, b):
 
 
 def run_model_multi_params(model_func, bound_func, population, population_labels, start_params_list,
-                           exclude_tracts_below_cM=0, modelling_method=PhT_Monoecious):
+                           exclude_tracts_below_cM=0, modelling_method=PhT_Monoecious): 
     optimal_params = []
     likelihoods = []
     for start_params in start_params_list:
