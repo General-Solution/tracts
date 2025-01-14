@@ -174,6 +174,7 @@ def density_hybrid_pedigree(which_migration, migration_list, T_PED, which_pop, D
                                                                                                 freq=False)
             else:
                 counts_m = np.ones(len(bins))
+                ETL_m = np.nan
     densities_per_p_m = counts_m  #*ped_probs_m[ped_probs_m[:,0] == which_migration, 1]
     densities_per_p_f = counts_f  #*ped_probs_f[ped_probs_f[:,0] == which_migration, 1]
     return densities_per_p_f, densities_per_p_m, which_migration, ETL_f, ETL_m
