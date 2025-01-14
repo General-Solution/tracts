@@ -376,7 +376,7 @@ class PhaseTypeDistribution:
                                               chrom_lengths: npt.ArrayLike) -> npt.ArrayLike:
         """Calculates the tract length histogram on multiple chromosomes of lengths [chrom_lengths]
         """
-        histogram = np.zeros(len(bins))
+        histogram = np.zeros(len(bins) - 1)
         scale = None
         if not self.sex_specific_admixture:
             exp_Sx_per_bin_f, exp_Sx_per_bin_m = None, None
@@ -396,7 +396,7 @@ class PhaseTypeDistribution:
             new_histogram, scale = self.tractlength_histogram_windowed(population_number, bins, L, exp_Sx_per_bin,
                                                                        exp_Sx_per_bin_f, exp_Sx_per_bin_m)
             histogram += new_histogram
-        return histogram, scale
+        return histogram
 
     def normalization_factor(self, L, S, S0_inv=None, alpha=None, exp_SL=None):
         """Computes the normalization factor Z from S0_inv and chromosome length L
@@ -476,10 +476,12 @@ class PhaseTypeDistribution:
         # print(f'npops: {self.npops}')
         predicted_tractlength_histogram = None
         pop = None
+        # TODO: Ask if this loop is necessary
         for pop in range(self.num_populations):
             predicted_tractlength_histogram = self.tract_length_histogram_multi_windowed(pop, bins, Ls)
             # print(f'pop: {pop}, models: {models}')
             # print(f'data: {data}')
+
         # TODO: Only use the last value of predicted_tractlength_histogram?
         return sum(-num_samples * predicted_tracts + data_tracts * np.log(num_samples * predicted_tracts) - gammaln(
             data_tracts + 1.)
