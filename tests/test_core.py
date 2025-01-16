@@ -31,8 +31,8 @@ def migration_matrix_D():
     return numpy.array([[0, 0], [0, 0], [0, 0.3], [1, 0]])
 
 
-def test_PDT_general(migration_matrix_A):
-    PTD = tracts.PhTMonoecious(migration_matrix_A)
+def test_PDT_Monoecious(migration_matrix_A):
+    PTD = tracts.phase_type_distribution.PhTMonoecious(migration_matrix_A)
     # Verify that the equilibrium distribution is a valid probability vector
     assert min(PTD.equilibrium_distribution) >= 0
     assert numpy.isclose(numpy.linalg.norm(PTD.equilibrium_distribution, ord=1), 1)
@@ -40,6 +40,41 @@ def test_PDT_general(migration_matrix_A):
     assert numpy.isclose(numpy.linalg.det(PTD.full_transition_matrix), 0)
     assert numpy.allclose(numpy.dot(PTD.equilibrium_distribution, PTD.full_transition_matrix), 0)
 
+def test_PDT_Dioecious(migration_matrix_A):
+    PTD_Monoecious = tracts.phase_type_distribution.PhTMonoecious(migration_matrix_A)
+    PTD_Dioecious_F = tracts.phase_type_distribution.PhTDioecious(migration_matrix_A, migration_matrix_A, rho_f = 1, rho_m = 1, sex_model = 'DF')
+    PTD_Dioecious_C = tracts.phase_type_distribution.PhTDioecious(migration_matrix_A, migration_matrix_A, rho_f = 1, rho_m = 1, sex_model = 'DC')
+    
+    # Compute PhT densities
+    newbins, counts_m, E = PTD_Monoecious.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = True, freq = False)
+    newbins, counts_df, E = PTD_Dioecious_F.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = True, freq = False)
+    newbins, counts_dc, E = PTD_Dioecious_C.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = True, freq = False)
+    
+    # Compute PhT frequencies
+    newbins, counts_m_freq, E = PTD_Monoecious.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = True, freq = True)
+    newbins, counts_df_freq, E = PTD_Dioecious_F.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = True, freq = True)
+    newbins, counts_dc_freq, E = PTD_Dioecious_C.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = True, freq = True)
+    
+    # Compute PhT histograms
+    counts_m_hist, E = PTD_Monoecious.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = False)
+    counts_df_hist, E = PTD_Dioecious_F.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = False)
+    counts_dc_hist, E = PTD_Dioecious_C.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = False)
+    
+    # Basic checks for Dioecious models  
+    assert numpy.all(numpy.isclose(numpy.sum(PTD_Dioecious_F.full_transition_matrix_f, axis = 1), 0))
+    assert numpy.all(numpy.isclose(numpy.sum(PTD_Dioecious_F.full_transition_matrix_m, axis = 1), 0))
+    assert numpy.all(numpy.isclose(numpy.sum(PTD_Dioecious_C.full_transition_matrix_f, axis = 1), 0))
+    assert numpy.all(numpy.isclose(numpy.sum(PTD_Dioecious_C.full_transition_matrix_m, axis = 1), 0))
+    
+    # In the unbiased setting, monoecious and dioecious densities must be close
+    assert numpy.all(numpy.isclose(counts_m, counts_df, atol = 1e-2))
+    assert numpy.all(numpy.isclose(counts_m, counts_dc, atol = 1e-2))
+    # And the frequencies
+    assert numpy.all(numpy.isclose(counts_m_freq, counts_df_freq, atol = 1e-2))
+    assert numpy.all(numpy.isclose(counts_m_freq, counts_dc_freq, atol = 1e-2))
+    # And the histograms
+    assert numpy.all(numpy.isclose(counts_m_hist, counts_df_hist, atol = 1e-2))
+    assert numpy.all(numpy.isclose(counts_m_hist, counts_dc_hist, atol = 1e-2))
 
 def verify_PDT(migration_matrix):
     print(f'Migration Matrix:\n{migration_matrix}')

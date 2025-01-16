@@ -64,17 +64,17 @@ class PhaseTypeDistribution:
             alpha = self.alpha_list[population_number]
             #alpha = [1 / (len(transition_matrix))] * (len(transition_matrix))
             return float(np.real(
-                np.dot(np.dot(alpha, scipy.linalg.expm(x * transition_matrix)), self.S0_list[population_number])))
+                np.dot(np.dot(alpha, scipy.linalg.expm(x * transition_matrix)), self.S0_list[population_number])).item())
         if s1 == 0 or s1 is None:
             transition_matrix_m = self.transition_matrices_m[population_number]
             alpha_m = self.alpha_list_m[population_number]
             f_m = float(np.real(np.dot(np.dot(alpha_m, scipy.linalg.expm(x * transition_matrix_m)),
-                                       self.S0_list_m[population_number])))
+                                       self.S0_list_m[population_number])).item())
         if s1 == 1 or s1 is None:
             transition_matrix_f = self.transition_matrices_f[population_number]
             alpha_f = self.alpha_list_f[population_number]
             f_f = float(np.real(np.dot(np.dot(alpha_f, scipy.linalg.expm(x * transition_matrix_f)),
-                                       self.S0_list_f[population_number])))
+                                       self.S0_list_f[population_number])).item())
         if self.X_chr_male or s1 == 1:
             return f_f
         if s1 == 0:
@@ -91,7 +91,7 @@ class PhaseTypeDistribution:
 
         bins = bins[bins <= L]  # Truncate to [0, L], where the distribution is supported
         bins = np.sort(bins)
-        ET = float(np.real(-np.dot(alpha, S0_inv)))
+        ET = float(np.real(-np.dot(alpha, S0_inv)).item())
         # Normalization factor
         Z = ET + L
         ETL = L * ET / Z
@@ -139,12 +139,12 @@ class PhaseTypeDistribution:
             if bin_val < L:
                 density_values[bin_number] = prop_connected * float(np.real(
                     2 * (1 - self.PhT_CDF(bin_val, population_number, s1)) +
-                    (L - bin_val) * self.PhT_density(bin_val, population_number, s1))) / Z
+                    (L - bin_val) * self.PhT_density(bin_val, population_number, s1)).item()) / Z
             else:
                 density_admixed_at_2 = float(np.real(
                     2 * (1 - self.PhT_CDF(bin_val, population_number, s1)) +
                     (L - bin_val) * self.PhT_density(bin_val, population_number, s1) + np.dot(
-                        np.dot(alpha, exp_Sx), L - S0_inv) - L * (1 - self.PhT_CDF(L, population_number, s1))))
+                        np.dot(alpha, exp_Sx), L - S0_inv) - L * (1 - self.PhT_CDF(L, population_number, s1))).item())
                 density_values[bin_number] = prop_connected * density_admixed_at_2 / Z + prop_isolated
 
                 return bins, density_values, ETL
@@ -154,17 +154,17 @@ class PhaseTypeDistribution:
             transition_matrix = self.transition_matrices[population_number]
             alpha = self.alpha_list[population_number]
             #alpha = [1 / (len(transition_matrix))] * (len(transition_matrix))
-            return 1 - float(np.real(np.sum(np.dot(alpha, scipy.linalg.expm(x * transition_matrix)))))
+            return 1 - float(np.real(np.sum(np.dot(alpha, scipy.linalg.expm(x * transition_matrix)))).item())
         F_f = 0.0
         F_m = 0.0
         if s1 == 1 or s1 is None:
             transition_matrix_f = self.transition_matrices_f[population_number]
             alpha_f = self.alpha_list_f[population_number]
-            F_f = 1 - float(np.real(np.sum(np.dot(alpha_f, scipy.linalg.expm(x * transition_matrix_f)))))
+            F_f = 1 - float(np.real(np.sum(np.dot(alpha_f, scipy.linalg.expm(x * transition_matrix_f)))).item())
         if s1 == 0 or s1 is None:
             transition_matrix_m = self.transition_matrices_m[population_number]
             alpha_m = self.alpha_list_m[population_number]
-            F_m = 1 - float(np.real(np.sum(np.dot(alpha_m, scipy.linalg.expm(x * transition_matrix_m)))))
+            F_m = 1 - float(np.real(np.sum(np.dot(alpha_m, scipy.linalg.expm(x * transition_matrix_m)))).item())
         if self.X_chr_male or s1 == 1:
             return F_f
         if s1 == 0:
@@ -176,11 +176,12 @@ class PhaseTypeDistribution:
 
         CDF_values = np.zeros(len(bins))
         bins = np.sort(bins)
-
+        S0_inv = np.asarray(S0_inv).ravel()
+        
         ET = -np.dot(alpha, S0_inv)
         Z = ET + L  # Normalization factor
         ETL = L * ET / Z
-
+        
         if self.sex_specific_admixture:
 
             prob_mig_f_1, prob_mig_m_1 = self.f_prop_at_1[pop_number], self.m_prop_at_1[pop_number]
@@ -221,7 +222,7 @@ class PhaseTypeDistribution:
 
             prop_isolated = prob_mig_1
             prop_connected = prob_ad_1
-
+            
         if not np.isclose(prop_isolated + prop_connected, 1):
             raise Exception('Probabilities of hyper-initial states do not sum up to one.')
 
@@ -851,9 +852,9 @@ class PhTDioecious(PhaseTypeDistribution):
        
         # Migration matrix M
         M = sparse.lil_matrix((N_vectors, np.shape(states)[0]))
-        start_time = time.time()
         
-        print('Loop starts. The DF state space has size ', len(states), flush = True)
+        #start_time = time.time()
+        #print('Loop starts. The DF state space has size ', len(states), flush = True)
         for k in range(len(states)):
             
             pop_state, delta_state = states[k, 0], states[k, 1]          
@@ -928,8 +929,8 @@ class PhTDioecious(PhaseTypeDistribution):
                 
             M[mig_vectors, k] = np.array(mig_probs)
             
-        end_time = time.time()
-        print('Loop finished in ', end_time - start_time, flush = True)
+        #end_time = time.time()
+        #print('Loop finished in ', end_time - start_time, flush = True)
         Rho_m = Rho_m.tocsr()
         Rho_f = Rho_f.tocsr()
         Rho = self.rho_m*Rho_m + self.rho_f*Rho_f
