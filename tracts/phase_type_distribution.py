@@ -239,7 +239,7 @@ class PhaseTypeDistribution:
                 CDF_values[bin_number:] = prop_connected * (
                     self.normalization_factor(L, S, S0_inv, alpha, exp_SL=scipy.linalg.expm(L * S))) / Z + prop_isolated
                 ETL = prop_connected * ETL + prop_isolated * L
-
+                
                 return CDF_values, ET, Z, ETL
 
         ETL = prop_connected * ETL + prop_isolated * L
@@ -273,7 +273,7 @@ class PhaseTypeDistribution:
     def tractlength_histogram_windowed(self, population_number: int, bins: npt.ArrayLike, L: float,
                                        exp_Sx_per_bin: npt.ArrayLike = None, exp_Sx_per_bin_f: npt.ArrayLike = None,
                                        exp_Sx_per_bin_m: npt.ArrayLike = None, density=False, freq=False,
-                                       return_only=None) -> npt.ArrayLike:
+                                       return_only=None, hybrid_ped = False) -> npt.ArrayLike:
         """Calculates the tractlength histogram on a window L
         """
         if return_only == 0 and self.X_chr_male:
@@ -332,6 +332,7 @@ class PhaseTypeDistribution:
                                                                            exp_Sx_per_bin=exp_Sx_per_bin_m,
                                                                            s1=0,
                                                                            pop_number=population_number)
+                
         if return_only == 1 or return_only is None:
             S_f = self.transition_matrices_f[population_number]
             alpha_f = self.alpha_list_f[population_number]
@@ -367,11 +368,15 @@ class PhaseTypeDistribution:
                 E = ETL_m
             else:
                 normalized_CDF = normalized_CDF_f
-                scale = self.t0_proportions[population_number] * L / ETL_m
-                E = ETL_m
+                scale = self.t0_proportions[population_number] * L / ETL_f
+                E = ETL_f
             if not np.all(np.isreal(normalized_CDF)):
                 print(f'CDF is complex.\n{normalized_CDF}')
-            return np.real(np.diff(normalized_CDF) * scale), E
+                
+            if not hybrid_ped:
+                return np.real(np.diff(normalized_CDF) * scale), E 
+            else:
+                return bins, normalized_CDF, E
 
     def tract_length_histogram_multi_windowed(self, population_number: int, bins: npt.ArrayLike,
                                               chrom_lengths: npt.ArrayLike) -> npt.ArrayLike:

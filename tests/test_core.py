@@ -49,7 +49,7 @@ def test_PDT_Dioecious(migration_matrix_A):
     newbins, counts_m, E = PTD_Monoecious.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = True, freq = False)
     newbins, counts_df, E = PTD_Dioecious_F.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = True, freq = False)
     newbins, counts_dc, E = PTD_Dioecious_C.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = True, freq = False)
-    
+     
     # Compute PhT frequencies
     newbins, counts_m_freq, E = PTD_Monoecious.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = True, freq = True)
     newbins, counts_df_freq, E = PTD_Dioecious_F.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = True, freq = True)
@@ -75,7 +75,72 @@ def test_PDT_Dioecious(migration_matrix_A):
     # And the histograms
     assert numpy.all(numpy.isclose(counts_m_hist, counts_df_hist, atol = 1e-2))
     assert numpy.all(numpy.isclose(counts_m_hist, counts_dc_hist, atol = 1e-2))
+    
+def test_PDT_X(migration_matrix_A):
+    
+    for Xcmale in [True, False]:
+        
+        PTD_Dioecious_F = tracts.phase_type_distribution.PhTDioecious(migration_matrix_A, migration_matrix_A, rho_f = 1, rho_m = 1, sex_model = 'DF', X_chromosome = True, X_chromosome_male = Xcmale)
+        PTD_Dioecious_C = tracts.phase_type_distribution.PhTDioecious(migration_matrix_A, migration_matrix_A, rho_f = 1, rho_m = 1, sex_model = 'DC', X_chromosome = True, X_chromosome_male = Xcmale)
+    
+        # Compute PhT densities
+        newbins, counts_df, E = PTD_Dioecious_F.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = True, freq = False)
+        newbins, counts_dc, E = PTD_Dioecious_C.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = True, freq = False)
+        
+        # Compute PhT frequencies
+        newbins, counts_df_freq, E = PTD_Dioecious_F.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = True, freq = True)
+        newbins, counts_dc_freq, E = PTD_Dioecious_C.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = True, freq = True)
+    
+        # Compute PhT histograms
+        counts_df_hist, E = PTD_Dioecious_F.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = False)
+        counts_dc_hist, E = PTD_Dioecious_C.tractlength_histogram_windowed(population_number = 0, bins = bins, L = Ls[1], density = False)
+    
+        # Basic checks for X models  
+        assert numpy.all(numpy.isclose(numpy.sum(PTD_Dioecious_F.full_transition_matrix_f, axis = 1), 0))
+        assert numpy.all(numpy.isclose(numpy.sum(PTD_Dioecious_F.full_transition_matrix_m, axis = 1), 0))
+        assert numpy.all(numpy.isclose(numpy.sum(PTD_Dioecious_C.full_transition_matrix_f, axis = 1), 0))
+        assert numpy.all(numpy.isclose(numpy.sum(PTD_Dioecious_C.full_transition_matrix_m, axis = 1), 0))
+    
+        # In the unbiased setting, fine and coarse densities must be close
+        assert numpy.all(numpy.isclose(counts_dc, counts_df, atol = 1e-1))
+        # And the frequencies
+        assert numpy.all(numpy.isclose(counts_dc_freq, counts_df_freq, atol = 1e-1))
+        # And the histograms
+        assert numpy.all(numpy.isclose(counts_dc_hist, counts_df_hist, atol = 1e-1))
 
+def test_pedigree(migration_matrix_A):
+          
+        # Hybrid pedigree model with TP = 2
+        
+        # Densities
+        thebins, counts_HP_aut = tracts.hybrid_pedigree.Ped_DF_density(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = False, X_chr_male = False, N_cores = 5, density=True, freq=False)
+        thebins, counts_HP_X = tracts.hybrid_pedigree.Ped_DF_density(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = True, X_chr_male = False, N_cores = 5, density=True, freq=False)
+        thebins, counts_HP_Xm = tracts.hybrid_pedigree.Ped_DF_density(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = True, X_chr_male = True, N_cores = 5, density=True, freq=False)
+       
+        assert numpy.all(counts_HP_aut>=0) 
+        assert numpy.all(counts_HP_X>=0) 
+        assert numpy.all(counts_HP_Xm>=0) 
+       
+        # Frequencies
+        thebins, counts_HP_aut = tracts.hybrid_pedigree.Ped_DF_density(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = False, X_chr_male = False, N_cores = 5, density=True, freq=True)
+        thebins, counts_HP_X = tracts.hybrid_pedigree.Ped_DF_density(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = True, X_chr_male = False, N_cores = 5, density=True, freq=True)
+        thebins, counts_HP_Xm = tracts.hybrid_pedigree.Ped_DF_density(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = True, X_chr_male = True, N_cores = 5, density=True, freq=True)
+        
+        assert numpy.all(counts_HP_aut>=0) 
+        assert numpy.all(counts_HP_X>=0) 
+        assert numpy.all(counts_HP_Xm>=0) 
+        
+        # Histograms
+        thebins, counts_HP_aut = tracts.hybrid_pedigree.Ped_DF_density(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = False, X_chr_male = False, N_cores = 5, density=False, freq=False)
+        thebins, counts_HP_X = tracts.hybrid_pedigree.Ped_DF_density(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = True, X_chr_male = False, N_cores = 5, density=False, freq=False)
+        thebins, counts_HP_Xm = tracts.hybrid_pedigree.Ped_DF_density(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = True, X_chr_male = True, N_cores = 5, density=False, freq=False)
+       
+        assert numpy.all(counts_HP_aut>=0) 
+        assert numpy.all(counts_HP_X>=0) 
+        assert numpy.all(counts_HP_Xm>=0) 
+        
+        
+        
 def verify_PDT(migration_matrix):
     print(f'Migration Matrix:\n{migration_matrix}')
     models = ModelComparison(migration_matrix)
