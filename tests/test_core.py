@@ -113,27 +113,27 @@ def test_pedigree(migration_matrix_A):
         # Hybrid pedigree model with TP = 2
         
         # Densities
-        thebins, counts_HP_aut = tracts.hybrid_pedigree.Ped_DF_density(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = False, X_chr_male = False, N_cores = 5, density=True, freq=False)
-        thebins, counts_HP_X = tracts.hybrid_pedigree.Ped_DF_density(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = True, X_chr_male = False, N_cores = 5, density=True, freq=False)
-        thebins, counts_HP_Xm = tracts.hybrid_pedigree.Ped_DF_density(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = True, X_chr_male = True, N_cores = 5, density=True, freq=False)
+        thebins, counts_HP_aut = tracts.hybrid_pedigree.hybrid_pedigree_distribution(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = False, X_chr_male = False, N_cores = 5, density=True, freq=False)
+        thebins, counts_HP_X = tracts.hybrid_pedigree.hybrid_pedigree_distribution(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = True, X_chr_male = False, N_cores = 5, density=True, freq=False)
+        thebins, counts_HP_Xm = tracts.hybrid_pedigree.hybrid_pedigree_distribution(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = True, X_chr_male = True, N_cores = 5, density=True, freq=False)
        
         assert numpy.all(counts_HP_aut>=0) 
         assert numpy.all(counts_HP_X>=0) 
         assert numpy.all(counts_HP_Xm>=0) 
        
         # Frequencies
-        thebins, counts_HP_aut = tracts.hybrid_pedigree.Ped_DF_density(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = False, X_chr_male = False, N_cores = 5, density=True, freq=True)
-        thebins, counts_HP_X = tracts.hybrid_pedigree.Ped_DF_density(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = True, X_chr_male = False, N_cores = 5, density=True, freq=True)
-        thebins, counts_HP_Xm = tracts.hybrid_pedigree.Ped_DF_density(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = True, X_chr_male = True, N_cores = 5, density=True, freq=True)
+        thebins, counts_HP_aut = tracts.hybrid_pedigree.hybrid_pedigree_distribution(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = False, X_chr_male = False, N_cores = 5, density=True, freq=True)
+        thebins, counts_HP_X = tracts.hybrid_pedigree.hybrid_pedigree_distribution(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = True, X_chr_male = False, N_cores = 5, density=True, freq=True)
+        thebins, counts_HP_Xm = tracts.hybrid_pedigree.hybrid_pedigree_distribution(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = True, X_chr_male = True, N_cores = 5, density=True, freq=True)
         
         assert numpy.all(counts_HP_aut>=0) 
         assert numpy.all(counts_HP_X>=0) 
         assert numpy.all(counts_HP_Xm>=0) 
         
         # Histograms
-        thebins, counts_HP_aut = tracts.hybrid_pedigree.Ped_DF_density(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = False, X_chr_male = False, N_cores = 5, density=False, freq=False)
-        thebins, counts_HP_X = tracts.hybrid_pedigree.Ped_DF_density(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = True, X_chr_male = False, N_cores = 5, density=False, freq=False)
-        thebins, counts_HP_Xm = tracts.hybrid_pedigree.Ped_DF_density(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = True, X_chr_male = True, N_cores = 5, density=False, freq=False)
+        thebins, counts_HP_aut = tracts.hybrid_pedigree.hybrid_pedigree_distribution(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = False, X_chr_male = False, N_cores = 5, density=False, freq=False)
+        thebins, counts_HP_X = tracts.hybrid_pedigree.hybrid_pedigree_distribution(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = True, X_chr_male = False, N_cores = 5, density=False, freq=False)
+        thebins, counts_HP_Xm = tracts.hybrid_pedigree.hybrid_pedigree_distribution(mig_matrix_f = migration_matrix_A, mig_matrix_m = migration_matrix_A, TP = 2, L = Ls[1], bingrid = bins, whichpop = 0, rr_f = 1, rr_m = 1, X_chr = True, X_chr_male = True, N_cores = 5, density=False, freq=False)
        
         assert numpy.all(counts_HP_aut>=0) 
         assert numpy.all(counts_HP_X>=0) 
