@@ -5,7 +5,6 @@ import scipy
 from scipy.special import gammaln
 import warnings
 from scipy import sparse
-from functools import reduce
 from sklearn.preprocessing import normalize
 import time
 
@@ -65,17 +64,17 @@ class PhaseTypeDistribution:
             alpha = self.alpha_list[population_number]
             #alpha = [1 / (len(transition_matrix))] * (len(transition_matrix))
             return float(np.real(
-                np.dot(np.dot(alpha, scipy.linalg.expm(x * transition_matrix)), self.S0_list[population_number])))
+                np.dot(np.dot(alpha, scipy.linalg.expm(x * transition_matrix)), self.S0_list[population_number])).item())
         if s1 == 0 or s1 is None:
             transition_matrix_m = self.transition_matrices_m[population_number]
             alpha_m = self.alpha_list_m[population_number]
             f_m = float(np.real(np.dot(np.dot(alpha_m, scipy.linalg.expm(x * transition_matrix_m)),
-                                       self.S0_list_m[population_number])))
+                                       self.S0_list_m[population_number])).item())
         if s1 == 1 or s1 is None:
             transition_matrix_f = self.transition_matrices_f[population_number]
             alpha_f = self.alpha_list_f[population_number]
             f_f = float(np.real(np.dot(np.dot(alpha_f, scipy.linalg.expm(x * transition_matrix_f)),
-                                       self.S0_list_f[population_number])))
+                                       self.S0_list_f[population_number])).item())
         if self.X_chr_male or s1 == 1:
             return f_f
         if s1 == 0:
@@ -92,7 +91,7 @@ class PhaseTypeDistribution:
 
         bins = bins[bins <= L]  # Truncate to [0, L], where the distribution is supported
         bins = np.sort(bins)
-        ET = float(np.real(-np.dot(alpha, S0_inv)))
+        ET = float(np.real(-np.dot(alpha, S0_inv)).item())
         # Normalization factor
         Z = ET + L
         ETL = L * ET / Z
@@ -140,12 +139,12 @@ class PhaseTypeDistribution:
             if bin_val < L:
                 density_values[bin_number] = prop_connected * float(np.real(
                     2 * (1 - self.PhT_CDF(bin_val, population_number, s1)) +
-                    (L - bin_val) * self.PhT_density(bin_val, population_number, s1))) / Z
+                    (L - bin_val) * self.PhT_density(bin_val, population_number, s1)).item()) / Z
             else:
                 density_admixed_at_2 = float(np.real(
                     2 * (1 - self.PhT_CDF(bin_val, population_number, s1)) +
                     (L - bin_val) * self.PhT_density(bin_val, population_number, s1) + np.dot(
-                        np.dot(alpha, exp_Sx), L - S0_inv) - L * (1 - self.PhT_CDF(L, population_number, s1))))
+                        np.dot(alpha, exp_Sx), L - S0_inv) - L * (1 - self.PhT_CDF(L, population_number, s1))).item())
                 density_values[bin_number] = prop_connected * density_admixed_at_2 / Z + prop_isolated
 
                 return bins, density_values, ETL
@@ -155,17 +154,17 @@ class PhaseTypeDistribution:
             transition_matrix = self.transition_matrices[population_number]
             alpha = self.alpha_list[population_number]
             #alpha = [1 / (len(transition_matrix))] * (len(transition_matrix))
-            return 1 - float(np.real(np.sum(np.dot(alpha, scipy.linalg.expm(x * transition_matrix)))))
+            return 1 - float(np.real(np.sum(np.dot(alpha, scipy.linalg.expm(x * transition_matrix)))).item())
         F_f = 0.0
         F_m = 0.0
         if s1 == 1 or s1 is None:
             transition_matrix_f = self.transition_matrices_f[population_number]
             alpha_f = self.alpha_list_f[population_number]
-            F_f = 1 - float(np.real(np.sum(np.dot(alpha_f, scipy.linalg.expm(x * transition_matrix_f)))))
+            F_f = 1 - float(np.real(np.sum(np.dot(alpha_f, scipy.linalg.expm(x * transition_matrix_f)))).item())
         if s1 == 0 or s1 is None:
             transition_matrix_m = self.transition_matrices_m[population_number]
             alpha_m = self.alpha_list_m[population_number]
-            F_m = 1 - float(np.real(np.sum(np.dot(alpha_m, scipy.linalg.expm(x * transition_matrix_m)))))
+            F_m = 1 - float(np.real(np.sum(np.dot(alpha_m, scipy.linalg.expm(x * transition_matrix_m)))).item())
         if self.X_chr_male or s1 == 1:
             return F_f
         if s1 == 0:
@@ -177,11 +176,12 @@ class PhaseTypeDistribution:
 
         CDF_values = np.zeros(len(bins))
         bins = np.sort(bins)
-
+        S0_inv = np.asarray(S0_inv).ravel()
+        
         ET = -np.dot(alpha, S0_inv)
         Z = ET + L  # Normalization factor
         ETL = L * ET / Z
-
+        
         if self.sex_specific_admixture:
 
             prob_mig_f_1, prob_mig_m_1 = self.f_prop_at_1[pop_number], self.m_prop_at_1[pop_number]
@@ -222,7 +222,7 @@ class PhaseTypeDistribution:
 
             prop_isolated = prob_mig_1
             prop_connected = prob_ad_1
-
+            
         if not np.isclose(prop_isolated + prop_connected, 1):
             raise Exception('Probabilities of hyper-initial states do not sum up to one.')
 
@@ -239,7 +239,7 @@ class PhaseTypeDistribution:
                 CDF_values[bin_number:] = prop_connected * (
                     self.normalization_factor(L, S, S0_inv, alpha, exp_SL=scipy.linalg.expm(L * S))) / Z + prop_isolated
                 ETL = prop_connected * ETL + prop_isolated * L
-
+                
                 return CDF_values, ET, Z, ETL
 
         ETL = prop_connected * ETL + prop_isolated * L
@@ -273,7 +273,7 @@ class PhaseTypeDistribution:
     def tractlength_histogram_windowed(self, population_number: int, bins: npt.ArrayLike, L: float,
                                        exp_Sx_per_bin: npt.ArrayLike = None, exp_Sx_per_bin_f: npt.ArrayLike = None,
                                        exp_Sx_per_bin_m: npt.ArrayLike = None, density=False, freq=False,
-                                       return_only=None) -> npt.ArrayLike:
+                                       return_only=None, hybrid_ped = False) -> npt.ArrayLike:
         """Calculates the tractlength histogram on a window L
         """
         if return_only == 0 and self.X_chr_male:
@@ -332,6 +332,7 @@ class PhaseTypeDistribution:
                                                                            exp_Sx_per_bin=exp_Sx_per_bin_m,
                                                                            s1=0,
                                                                            pop_number=population_number)
+                
         if return_only == 1 or return_only is None:
             S_f = self.transition_matrices_f[population_number]
             alpha_f = self.alpha_list_f[population_number]
@@ -367,17 +368,21 @@ class PhaseTypeDistribution:
                 E = ETL_m
             else:
                 normalized_CDF = normalized_CDF_f
-                scale = self.t0_proportions[population_number] * L / ETL_m
-                E = ETL_m
+                scale = self.t0_proportions[population_number] * L / ETL_f
+                E = ETL_f
             if not np.all(np.isreal(normalized_CDF)):
                 print(f'CDF is complex.\n{normalized_CDF}')
-            return np.real(np.diff(normalized_CDF) * scale), E
+                
+            if not hybrid_ped:
+                return np.real(np.diff(normalized_CDF) * scale), E 
+            else:
+                return bins, normalized_CDF, E
 
     def tract_length_histogram_multi_windowed(self, population_number: int, bins: npt.ArrayLike,
                                               chrom_lengths: npt.ArrayLike) -> npt.ArrayLike:
         """Calculates the tract length histogram on multiple chromosomes of lengths [chrom_lengths]
         """
-        histogram = np.zeros(len(bins))
+        histogram = np.zeros(len(bins) - 1)
         scale = None
         if not self.sex_specific_admixture:
             exp_Sx_per_bin_f, exp_Sx_per_bin_m = None, None
@@ -397,7 +402,7 @@ class PhaseTypeDistribution:
             new_histogram, scale = self.tractlength_histogram_windowed(population_number, bins, L, exp_Sx_per_bin,
                                                                        exp_Sx_per_bin_f, exp_Sx_per_bin_m)
             histogram += new_histogram
-        return histogram, scale
+        return histogram
 
     def normalization_factor(self, L, S, S0_inv=None, alpha=None, exp_SL=None):
         """Computes the normalization factor Z from S0_inv and chromosome length L
@@ -477,10 +482,12 @@ class PhaseTypeDistribution:
         # print(f'npops: {self.npops}')
         predicted_tractlength_histogram = None
         pop = None
+        # TODO: Ask if this loop is necessary
         for pop in range(self.num_populations):
             predicted_tractlength_histogram = self.tract_length_histogram_multi_windowed(pop, bins, Ls)
             # print(f'pop: {pop}, models: {models}')
             # print(f'data: {data}')
+
         # TODO: Only use the last value of predicted_tractlength_histogram?
         return sum(-num_samples * predicted_tracts + data_tracts * np.log(num_samples * predicted_tracts) - gammaln(
             data_tracts + 1.)
@@ -834,105 +841,75 @@ class PhTDioecious(PhaseTypeDistribution):
         unnormalized_sex_vec_prob = state_probs * surv_prob * sex_prob
         return unnormalized_sex_vec_prob
 
-    def S_matrix(self, states, pulses, xi, T_ped, D_model='DF'):
-
-        if not np.isin(D_model, ['DF', 'DC']):
+    def S_matrix(self, states, pulses, xi, T_ped, D_model = 'DF'):
+        
+        if not np.isin(D_model, ['DF','DC']):
             raise Exception('D_model must be either DF or DC.')
-
+    
         pulses_copy = pulses.copy()
         T = np.shape(self.migration_matrix_f)[0]
-        T0 = 2
         coarse_states = np.zeros(len(states))
         unnorm_sex_prob = np.zeros(len(states))
-
-        all_vectors = np.concatenate([xi * np.ones([2 ** (T - 1), 1]),
-                                      np.flip(np.array([i for i in itertools.product([0, 1], repeat=T - 1)]), axis=0)],
-                                     axis=1)
-        for tt in np.flip(np.arange(T0, T)):
-            all_vectors_tt = np.concatenate([xi * np.ones([2 ** (tt - 1), 1]),
-                                             np.flip(np.array([i for i in itertools.product([0, 1], repeat=tt - 1)]),
-                                                     axis=0), np.nan * np.ones([2 ** (tt - 1), T - tt])],
-                                            axis=1) if tt > 1 else np.concatenate(
-                [xi * np.ones([2 ** (tt - 1), 1]), np.nan * np.ones([2 ** (tt - 1), T - tt])], axis=1)
-            all_vectors = np.concatenate([all_vectors_tt, all_vectors], axis=0)
-
-        if self.X_chr:
-            all_vectors = all_vectors[~(((all_vectors[:, :-1] + all_vectors[:, 1:]) == 0).any(axis=1)), :]
-            all_vectors = all_vectors[np.nansum(all_vectors, axis=1) > 0, :]
-
-            # Recombination matrix Rho
-
-        Rho_m = sparse.lil_matrix((np.shape(states)[0], np.shape(all_vectors)[0]))
-        Rho_f = sparse.lil_matrix((np.shape(states)[0], np.shape(all_vectors)[0]))
-
+        N_vectors = 2**T - 2
+        
+        # Recombination matrix Rho                    
+        Rho_m = sparse.lil_matrix((np.shape(states)[0], N_vectors))
+        Rho_f = sparse.lil_matrix((np.shape(states)[0], N_vectors))
+       
         # Migration matrix M
-        M = np.zeros([np.shape(all_vectors)[0], np.shape(states)[0]])
-        start_time = time.time()
-
-        print('Loop starts. Space state has size ', len(states), flush=True)
+        M = sparse.lil_matrix((N_vectors, np.shape(states)[0]))
+        
+        #start_time = time.time()
+        #print('Loop starts. The DF state space has size ', len(states), flush = True)
         for k in range(len(states)):
-
-            pop_state, delta_state = states[k, 0], states[k, 1]
-            t_state = 1 + np.sum(~np.isnan(states[k, 3:]))
-            unnorm_sex_prob[k] = self.unnormalized_prob_sex_vector(pulses, states[k, :], T_ped=T_ped)
-
+            
+            pop_state, delta_state = states[k, 0], states[k, 1]          
+            t_state = 1 + np.sum(~np.isnan(states[k,3:]))
+            unnorm_sex_prob[k] = self.unnormalized_prob_sex_vector(pulses, states[k,:], T_ped = T_ped)
+            
             # Find or append the coarse state
-            mask = (pulses_copy[:, 0] == pop_state) & (pulses_copy[:, 1] == t_state) & (
-                    pulses_copy[:, 2] == delta_state)
+            mask = (pulses_copy[:, 0] == pop_state) & (pulses_copy[:, 1] == t_state) & (pulses_copy[:, 2] == delta_state)
             coarse_index = np.where(mask)[0]
             if coarse_index.size > 0:
                 coarse_states[k] = coarse_index[0]
             else:
                 new_row = np.array([[pop_state, t_state, delta_state, 1]])
                 pulses_copy = np.vstack([pulses_copy, new_row])
-                coarse_states[k] = pulses_copy.shape[0] - 1
-
-                # Process sexes and reconstruct vectors
+                coarse_states[k] = pulses_copy.shape[0] - 1 
+              
+            # Process sexes and reconstruct vectors
             sexes_k = np.append(states[k, 3:][~np.isnan(states[k, 3:])], delta_state)
+            
             rec_vectors = [
-                np.where(
-                    np.all(
-                        np.isclose(
-                            all_vectors,  ##### Loop? Binary
-                            np.concatenate([sexes_k[:end], [np.abs(1 - sexes_k[end])],
-                                            np.full(all_vectors.shape[1] - end - 1, np.nan)]),
-                            equal_nan=True), axis=1)
-                )[0]
+                int('1' + ''.join(map(str, np.concatenate([sexes_k[1:end], [np.abs(1 - sexes_k[end])]]).astype(int))), 2) - 2
                 for end in range(1, len(sexes_k))]
             rec_vectors = np.array(rec_vectors, dtype=object)
-
+            
             # Separate male and female recombinations
             sex_at_tr = sexes_k[:-1]
-            ind_m = rec_vectors[sex_at_tr == 0]
-            ind_f = rec_vectors[sex_at_tr == 1]
-
+            
+            ind_m = rec_vectors[np.where(sex_at_tr == 0)[0]]
+            ind_f = rec_vectors[np.where(sex_at_tr == 1)[0]]
+            
             if len(ind_m) > 0:
-                Rho_m[k, np.concatenate(ind_m)] = 1
+                Rho_m[k, ind_m] = 1
             if len(ind_f) > 0:
-                Rho_f[k, np.concatenate(ind_f)] = 1
-
+                Rho_f[k, ind_f] = 1
+            
             # Process migration vectors
             mig_vectors = [
-                np.where(
-                    np.all(
-                        np.isclose(
-                            all_vectors,
-                            np.concatenate([sexes_k[:end + 1], np.full(T - end - 1, np.nan)]),
-                            equal_nan=True),
-                        axis=1)
-                )[0]
+                int('1' + ''.join(map(str, sexes_k[1:end + 1].astype(int))), 2) - 2                
                 for end in range(1, len(sexes_k))]
-
-            mig_vectors = reduce(np.union1d, mig_vectors)
-            rec_times = np.array([np.sum(~np.isnan(all_vectors[mv])) - 2 for mv in mig_vectors])
-
+            
+            rec_times = np.arange(0, len(sexes_k) - 1)
+            
             # Calculate sex recombination probabilities
             sexes_k = sexes_k[:-1]
-
+          
             diff = sexes_k[1:] - sexes_k[:-1]
-            vec_fm = np.ones(len(sexes_k))
+            vec_fm = np.ones(len(sexes_k))  
             vec_fm[1:] = (diff == 1) + 0.5 * (diff != 1)
-
+            
             if not self.X_chr:
                 vec_fm = np.full(len(vec_fm), 0.5)
                 vec_fm[0] = 1
@@ -941,7 +918,7 @@ class PhTDioecious(PhaseTypeDistribution):
                 prob_state = states[k, 2] ** (t_state > T_ped)
             else:
                 prob_state = 0.5 * (states[k, 2] ** (t_state > T_ped))
-
+    
             # Compute migration probabilities
             mig_probs = []
             for mv, rtime in zip(mig_vectors, rec_times):
@@ -955,45 +932,40 @@ class PhTDioecious(PhaseTypeDistribution):
                         for s in range(rtime + 1, t_state - 1)
                     ])
                 mig_probs.append(prob_state * sex_prob * surv_prob)
-
+                
             M[mig_vectors, k] = np.array(mig_probs)
-
-        end_time = time.time()
-        print('Loop finished in ', end_time - start_time, flush=True)
+            
+        #end_time = time.time()
+        #print('Loop finished in ', end_time - start_time, flush = True)
         Rho_m = Rho_m.tocsr()
         Rho_f = Rho_f.tocsr()
-        Rho = self.rho_m * Rho_m + self.rho_f * Rho_f
-        M = sparse.csr_array(M)
-
+        Rho = self.rho_m*Rho_m + self.rho_f*Rho_f
+       
+        ## Keep admissible recombination vectors if X chromosome
+        if self.X_chr:
+              
+              Rho = Rho[((Rho.getnnz(axis=1) > 0) | (M.getnnz(axis=0) > 0))]
+              M = M[:, ((Rho.getnnz(axis=1) > 0) | (M.getnnz(axis=0) > 0))]
+        
         if D_model == 'DF':
-
+            
             S_DF = Rho.dot(M).todense()
-
-            if np.any(np.sum(S_DF, axis=1) == 0):
-                raise Exception('State space is not connected.')
-            np.fill_diagonal(S_DF, -np.sum(S_DF, axis=1))
+           
+            if np.any(np.sum(S_DF, axis = 1) == 0):
+                raise Exception('State space is not connected.')        
+            np.fill_diagonal(S_DF, -np.sum(S_DF, axis = 1))  
 
             return S_DF.astype(float)
-
-        else:  # Build A and P matrices for DC model computation
-
-            #A = np.zeros([len(states), len(pulses_copy)])
-            #P = np.zeros([len(states), len(pulses_copy)])
-
-            #A[np.arange(len(states)),  coarse_states.astype(int)] = 1
-            #P[np.arange(len(states)),  coarse_states.astype(int)] = unnorm_sex_prob
-
-            A = sparse.csr_matrix((np.ones(len(states)), (np.arange(len(states)), coarse_states.astype(int))),
-                                  shape=tuple((len(states), len(pulses_copy))))
-            P = sparse.csr_matrix((unnorm_sex_prob, (np.arange(len(states)), coarse_states.astype(int))),
-                                  shape=tuple((len(states), len(pulses_copy))))
-
+        
+        else: # Build A and P matrices for DC model computation
+           
+            A = sparse.csr_matrix((np.ones(len(states)), (np.arange(len(states)),  coarse_states.astype(int))), shape = tuple((len(states), len(pulses_copy))))
+            P = sparse.csr_matrix((unnorm_sex_prob, (np.arange(len(states)),  coarse_states.astype(int))), shape = tuple((len(states), len(pulses_copy))))
             Pt = normalize(P, norm='l1', axis=0).transpose()
-            #Pt = (P/P.sum(axis = 0)).T
-
+             
             S_DC = (((Pt.dot(Rho)).dot(M)).dot(A)).todense()
             np.fill_diagonal(S_DC, 0)
-            np.fill_diagonal(S_DC, -np.sum(S_DC, axis=1))
+            np.fill_diagonal(S_DC, -np.sum(S_DC, axis = 1))  
 
             return pulses_copy, S_DC.astype(float)
 

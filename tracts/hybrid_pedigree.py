@@ -126,7 +126,7 @@ def prob_of_pop_setting(ms, all_possible_migrations_list, migrations_at_T_list, 
 
 
 def density_hybrid_pedigree(which_migration, migration_list, T_PED, which_pop, D_model, which_L, bins, mmat_f, mmat_m,
-                            rrr_f, rrr_m, is_X_chr, is_X_chr_male):
+                            rrr_f, rrr_m, is_X_chr, is_X_chr_male, density_function):
     bins = np.asarray(bins)
     if ~np.any(np.isin(bins, which_L)):  # Add L to the bins vector
         bins = np.append(bins, which_L)
@@ -156,8 +156,8 @@ def density_hybrid_pedigree(which_migration, migration_list, T_PED, which_pop, D
             ETL_f = np.nan
         else:
             newbins, counts_f, ETL_f = PhaseTypeDistribution.tractlength_histogram_windowed(PhT_ped, which_pop, bins,
-                                                                                            L=which_L, density=True,
-                                                                                            return_only=1, freq=False)
+                                                                                            L=which_L, density=density_function,
+                                                                                            return_only=1, freq=False, hybrid_ped=True)
         if np.all(PhT_ped.source_populations_m == which_pop):
             counts_m = np.zeros(len(bins))
             counts_m[-1] = 1
@@ -169,11 +169,12 @@ def density_hybrid_pedigree(which_migration, migration_list, T_PED, which_pop, D
             if not is_X_chr_male:
                 newbins, counts_m, ETL_m = PhaseTypeDistribution.tractlength_histogram_windowed(PhT_ped, which_pop,
                                                                                                 bins, L=which_L,
-                                                                                                density=True,
+                                                                                                density=density_function,
                                                                                                 return_only=0,
-                                                                                                freq=False)
+                                                                                                freq=False, hybrid_ped=True)
             else:
                 counts_m = np.ones(len(bins))
+                ETL_m = np.nan
     densities_per_p_m = counts_m  #*ped_probs_m[ped_probs_m[:,0] == which_migration, 1]
     densities_per_p_f = counts_f  #*ped_probs_f[ped_probs_f[:,0] == which_migration, 1]
     return densities_per_p_f, densities_per_p_m, which_migration, ETL_f, ETL_m
@@ -181,7 +182,8 @@ def density_hybrid_pedigree(which_migration, migration_list, T_PED, which_pop, D
 
 def Ped_DF_density(mig_matrix_f, mig_matrix_m, TP, L, bingrid, whichpop, Dioecious_model='DF',
                    all_possible_migrations_TP=None, rr_f=1, rr_m=1, X_chr=False, X_chr_male=False, N_cores=1,
-                   freq=False):
+                   density=True, freq=False):
+    
     if not np.isin(Dioecious_model, ['DF', 'DC']):
         raise Exception('The Dioecious model must be one in DF, DC.')
 
@@ -253,19 +255,20 @@ def Ped_DF_density(mig_matrix_f, mig_matrix_m, TP, L, bingrid, whichpop, Dioecio
     density_hybrid_iteration = partial(density_hybrid_pedigree, migration_list=migrations_at_TP, which_pop=whichpop,
                                        D_model=Dioecious_model, T_PED=TP, which_L=L,
                                        bins=bingrid, mmat_f=mig_matrix_f, mmat_m=mig_matrix_m, rrr_f=rr_f, rrr_m=rr_m,
-                                       is_X_chr=X_chr, is_X_chr_male=X_chr_male)
+                                       is_X_chr=X_chr, is_X_chr_male=X_chr_male, density_function=density)
     densities_list = Parallel(n_jobs=N_cores, verbose=10, prefer='processes')(
         delayed(density_hybrid_iteration)(i) for i in range(len(migrations_at_TP)))
 
     print('-------------------------------------------------------------------\n')
     print("".join(['Done!\n']))
     print('-------------------------------------------------------------------\n')
-
-    bins = np.asarray(bingrid)
-    if ~np.any(np.isin(bins, L)):  # Add L to the bins vector
-        bins = np.append(bins, L)
-    bins = bins[bins <= L]  # Truncate to [0, L], where the distribution is supported
-    bins = np.unique(np.sort(bins))
+    
+    if density:
+        bins = np.asarray(bingrid)
+        if ~np.any(np.isin(bins, L)):  # Add L to the bins vector
+            bins = np.append(bins, L)
+        bins = bins[bins <= L]  # Truncate to [0, L], where the distribution is supported
+        bins = np.unique(np.sort(bins))
 
     # Remove pedigrees that yield space states with only absorbing states
 
@@ -297,4 +300,7 @@ def Ped_DF_density(mig_matrix_f, mig_matrix_m, TP, L, bingrid, whichpop, Dioecio
             [l[4] * prob_list_m[prob_list_m[:, 0] == l[2], 1] for l in densities_list if
              np.isin(l[2], prob_list_m[:, 0])]), axis=0))
         scale = 2 * t0_proportions[whichpop] * L / Exp if freq else 1
-    return bins, final_density * scale
+    if density:
+        return bins, final_density*scale
+    else:
+        return bingrid, np.real(np.diff(final_density)*scale)
