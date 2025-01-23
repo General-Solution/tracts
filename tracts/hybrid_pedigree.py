@@ -180,9 +180,73 @@ def density_hybrid_pedigree(which_migration, migration_list, T_PED, which_pop, D
     return densities_per_p_f, densities_per_p_m, which_migration, ETL_f, ETL_m
 
 
-def Ped_DF_density(mig_matrix_f, mig_matrix_m, TP, L, bingrid, whichpop, Dioecious_model='DF',
-                   all_possible_migrations_TP=None, rr_f=1, rr_m=1, X_chr=False, X_chr_male=False, N_cores=1,
-                   density=True, freq=False):
+def hybrid_pedigree_distribution(mig_matrix_f, mig_matrix_m, L, bingrid, whichpop, TP=2, Dioecious_model='DC',
+                                 rr_f=1, rr_m=1, X_chr=False, X_chr_male=False, N_cores=1,
+                                 density=True, freq=False):
+    
+    """
+    This function computes the tract length distribution as a Phase-Type density or histogram on a finite 
+    chromosome of length L, using the Hybrid-Pedigree model. The Phase-Type parameters are computed from a 
+    pair of migration matrices, the sex-specific recombination rates and the number of pedigree generations.
+    
+    Parameters
+    ----------
+    mig_matrix_f : npt.ArrayLike
+        An array containing the female migration proportions from a discrete number of populations over the last generations.
+        Each row is a time, each column is a population. Row zero corresponds to the current
+        generation. T
+        The (i,j) element of this matrix specifies the proportion of female individuals from the admixed population that
+        are replaced by female individuals from population j at generation i. 
+        The migration rate at the last generation (migration_matrix_f[-1,:]) is the "founding generation" and should sum up to 1. 
+    mig_matrix_m : npt.ArrayLike
+        Counterpart of mig_matrix_f for male migration rates.
+    L: float
+        The length of the finite chromosome.
+    bingrid: npt.ArrayLike
+        A point grid on (0, infinity) where the CDF or density have to be evaluated.  
+    whichpop: int
+        The population of interest whose tract length distribution has to be computed. 
+        An integer from 0 to the number of populations - 1.         
+    TP: int, default 2
+        The number of generations of the pedigree. Shouldn't be higher than 3 for the sake of computational efficiency.
+    sex_model: default 'DC'
+        The Dioecious model to be considered. Takes the value 'DF' for Dioecious Fine and 'DC' for Dioecious Coarse.
+    rr_f : float, default 1
+        The female-specific recombination rate (positive real number).
+    rr_m : float, default 1
+        The male-specific recombination rate (positive real number). For X chromosome admixture, this value is ignored and set to 0.
+    X_chr: bool, default False
+        Whether admixture is considered on the X chromosome. If False, the model considers autosomal admixture.
+    X_chr_male: bool, default False
+        If X_chr is True, whether the individual at generation 0 is a male. In that case, only maternally inherited alleles are taken
+        into account. If not X_chr, set to False.
+    N_cores: int, default 1
+        The number of threads to be used for parallel computation.
+    density : bool, default False
+        If True, computes the PhT density. Else, returns the histogram values on the grid.
+    freq : bool, default False,
+        If density is True, whether to return density on the frequency scale. If density is False, this 
+        parameter is ignored.
+        
+    Returns
+    ----------
+    npt.ArrayLike
+        If density is True, the corrected bins grid as described in Notes. Else, the user-specified bins.
+    npt.ArrayLike
+        If density is True, the PhT density evaluated on the corrected bins grid. Returned on the frequency scale if freq = True. 
+        If density is False, the histogram values on the intervals defined by bins.
+     
+    Notes
+    -------    
+    If density is True, the code truncates bins to the interval [0,L] and adds the point L if it is not included in bins.
+    This is done because the density is defined on the finite chromosome [0,L] as a mixture of a continuous density on [0,L) and a Dirac measure at L.
+    Consequently, the function returns as a first argument the transformed grid, that can be used as x-axis to plot the density. 
+    If density is False, the code produces a histogram supported on the user-specified grid. 
+    If the grid has n points, the histogram will be defined on n-1 intervals. Therefore, the returned 
+    array will have length len(bins)-1.     
+    """
+    
+    
     
     if not np.isin(Dioecious_model, ['DF', 'DC']):
         raise Exception('The Dioecious model must be one in DF, DC.')
@@ -206,13 +270,11 @@ def Ped_DF_density(mig_matrix_f, mig_matrix_m, TP, L, bingrid, whichpop, Dioecio
     the_pedigree = get_pedigree(TP)
 
     if TP < T:
-        if all_possible_migrations_TP is None:
-            all_possible_migrations_TP = all_possible_trees_as_arrays(TP, Npops, mig_at_last=False)
+        all_possible_migrations_TP = all_possible_trees_as_arrays(TP, Npops, mig_at_last=False)
         migrations_at_TP = np.array([i for i in itertools.product(np.arange(Npops + 1).tolist(), repeat=nanc_TP)])
 
     elif TP == T:
-        if all_possible_migrations_TP is None:
-            all_possible_migrations_TP = all_possible_trees_as_arrays(TP, Npops, mig_at_last=True)
+        all_possible_migrations_TP = all_possible_trees_as_arrays(TP, Npops, mig_at_last=True)
         migrations_at_TP = np.array([i for i in itertools.product(np.arange(1, Npops + 1).tolist(), repeat=nanc_TP)])
 
     prob_of_pop_setting_iteration_0 = partial(prob_of_pop_setting,
