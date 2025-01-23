@@ -5,8 +5,8 @@ import scipy.optimize
 from matplotlib import pylab
 
 from tracts.phase_type_distribution import PhTMonoecious
-from tracts.demographic_model import DemographicModel
-from tracts.composite_demographic_model import CompositeDemographicModel
+from tracts.demography.demographic_model import DemographicModel
+from tracts.demography.composite_demographic_model import CompositeDemographicModel
 from tracts.util import eprint
 
 #: Counts calls to object_func

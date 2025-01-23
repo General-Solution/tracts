@@ -711,7 +711,8 @@ class PhTDioecious(PhaseTypeDistribution):
         if self.sex_model == 'DF':
             self.full_transition_matrix_f, self.source_populations_f, self.transition_matrices_f, self.alpha_list_f = self.PhT_parameters_DF(
                 parent_sex=1, T_pedigree=TPED, migration_setting_at_TP=setting_TP)
-            self.full_transition_matrix_m, self.source_populations_m, self.transition_matrices_m, self.alpha_list_m = self.PhT_parameters_DF(
+            self.full_transition_matrix_m, self.source_populations_m, self.transition_matrices_m, self.alpha_list_m \
+                = self.PhT_parameters_DF(
                 parent_sex=0, T_pedigree=TPED, migration_setting_at_TP=setting_TP)
         else:
             self.full_transition_matrix_f, self.source_populations_f, self.transition_matrices_f, self.alpha_list_f = self.PhT_parameters_DC(

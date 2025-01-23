@@ -112,7 +112,7 @@ class ModelComparison:
         demo_hist = self.demo.expectperbin([L], population_number, bins)[:-1]
         print(f'\nTractlength histogram from PTD: \n{PTD_hist}')
         print(f'\nTractlength histogram from tracts: \n{numpy.array(demo_hist)}')
-        assert numpy.allclose(PTD_hist, numpy.array(demo_hist), atol=0.1)
+        assert numpy.allclose(PTD_hist, numpy.array(demo_hist), atol=0.01)
 
     def compare_models_2(self, bins, L, population_number):
         # TODO: Decide if this should be moved to examples

@@ -1,4 +1,3 @@
-import __main__
 import logging
 import numbers
 import os
@@ -9,7 +8,7 @@ import numpy
 import ruamel.yaml
 
 from tracts import Population, PhTMonoecious, optimize_cob
-from tracts.parametrized_demography import ParametrizedDemography
+from tracts.demography.parametrized_demography import ParametrizedDemography
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +17,17 @@ filepath_error_additional_message = ('\nPlease ensure that the file path is eith
                                      ' or the directory of the driver yaml.')
 
 
-def locate_file_path(filename, absolute_driver_yaml_path=None):
-    for filepath, method_name in ((Path(filename), 'using working directory'),
-                                  (Path(__main__.__file__).parent / filename, 'using script directory'),
-                                  (absolute_driver_yaml_path.parent / filename if isinstance(absolute_driver_yaml_path,
-                                                                                             Path) else Path(''),
-                                   'using driver yaml')
-                                  ):
+def locate_file_path(filename: str, script_dir: str | Path, absolute_driver_yaml_path: str | Path = None):
+    # Define search methods and paths
+    search_methods = [
+        (Path(filename), "using working directory"),
+        (Path(script_dir) / filename if script_dir else None, "using script directory"),
+        (
+            (absolute_driver_yaml_path.parent / filename if isinstance(absolute_driver_yaml_path, Path) else Path("")),
+            "using driver yaml"
+        )
+    ]
+    for filepath, method_name in search_methods:
         logger.info(f'{method_name}: {filepath}')
         if filepath.is_file():
             logger.info(f'Found {filename} {method_name}.')
@@ -33,12 +36,11 @@ def locate_file_path(filename, absolute_driver_yaml_path=None):
         if (Path(pathname) / filename).is_file():
             logger.info(f'Found {filename} from {pathname}.')
             return Path(pathname) / filename
-    # raise IndexError(f'The file {filename} could not be found. {filepath_error_additional_message}')
     return None
 
 
-def run_tracts(driver_filename):
-    driver_path = locate_file_path(driver_filename)
+def run_tracts(driver_filename, script_dir):
+    driver_path = locate_file_path(filename=driver_filename, script_dir=script_dir)
     driver_spec = load_driver_file(driver_path)
 
     chromosome_list = parse_chromosomes(driver_spec['samples']['chromosomes'])
@@ -47,6 +49,7 @@ def run_tracts(driver_filename):
                                                       driver_spec['samples']['filename_format'],
                                                       labels=driver_spec['samples']['labels'],
                                                       directory=driver_spec['samples']['directory'],
+                                                      script_dir=script_dir,
                                                       absolute_driver_yaml_path=driver_path)
 
     exclude_tracts_below_cM = driver_spec['exclude_tracts_below_cm'] if 'exclude_tracts_below_cm' in driver_spec else 10
@@ -59,7 +62,7 @@ def run_tracts(driver_filename):
 
     time_scaling_factor = driver_spec['time_scaling_factor'] if 'time_scaling_factor' in driver_spec else 1
 
-    model = load_model_from_driver(driver_spec, driver_path)
+    model = load_model_from_driver(driver_spec=driver_spec, script_dir=script_dir, driver_path=driver_path)
 
     population_labels = model.population_indices.keys()
 
@@ -91,7 +94,7 @@ def run_tracts(driver_filename):
 
 def load_driver_file(driver_path):
     if driver_path is None:
-        raise OSError(f'Driver yaml file could not be found. {filepath_error_additional_message}')
+        raise FileNotFoundError(f'Driver yaml file could not be found. {filepath_error_additional_message}')
     with driver_path.open() as file, ruamel.yaml.YAML(typ="safe") as yaml:
         driver_spec = yaml.load(file)
     if not isinstance(driver_spec, dict):
@@ -99,12 +102,14 @@ def load_driver_file(driver_path):
     return driver_spec
 
 
-def load_model_from_driver(driver_spec, driver_path):
+def load_model_from_driver(driver_spec, script_dir, driver_path):
     if 'model_filename' not in driver_spec:
         raise ValueError('You must specify the file path to your model under "model_filename".')
-    model_path = locate_file_path(driver_spec['model_filename'], driver_path)
+    model_path = locate_file_path(filename=driver_spec['model_filename'],
+                                  script_dir=script_dir,
+                                  absolute_driver_yaml_path=driver_path)
     if model_path is None:
-        raise OSError(f'Model yaml file could not be found. {filepath_error_additional_message}')
+        raise FileNotFoundError(f'Model yaml file could not be found. {filepath_error_additional_message}')
     model = ParametrizedDemography.load_from_YAML(str(model_path.resolve()))
     return model
 
@@ -126,17 +131,18 @@ def parse_chromosomes(chromosome_spec, chromosomes=None):
         raise ValueError('Chromosomes should be an int, range (ie: 1-22), or list.') from e
 
 
-def parse_individual_filenames(individual_names, filename_string, labels=None, directory='',
+def parse_individual_filenames(individual_names, filename_string, script_dir: str, labels=None, directory='',
                                absolute_driver_yaml_path=None):
     if labels is None:
         labels = ['A', 'B']
 
     def _find_individual_file(individual_name, label_val):
-        filepath = locate_file_path(directory + filename_string.format(name=individual_name, label=label_val),
-                                    absolute_driver_yaml_path)
+        filepath = locate_file_path(filename=directory + filename_string.format(name=individual_name, label=label_val),
+                                    script_dir=script_dir,
+                                    absolute_driver_yaml_path=absolute_driver_yaml_path)
         if filepath is None:
-            raise IndexError(
-                f'File for individiual {individual_name} '
+            raise FileNotFoundError(
+                f'File for individual {individual_name} '
                 f'("{directory + filename_string.format(name=individual_name, label=label_val)}")'
                 f' could not be found. {filepath_error_additional_message}')
         return str(filepath)
@@ -193,7 +199,7 @@ def get_time_scaled_model_func(model, time_scaling_factor):
 
 
 def get_time_scaled_model_bounds(model, time_scaling_factor):
-    return lambda params: model.check_invalid(scale_select_indices(params, model.is_time_param(), time_scaling_factor))
+    return lambda params: model.get_violation_score(scale_select_indices(params, model.is_time_param(), time_scaling_factor))
 
 
 def randomize(arr, a, b):
