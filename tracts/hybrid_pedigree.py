@@ -127,21 +127,23 @@ def prob_of_pop_setting(ms, all_possible_migrations_list, migrations_at_T_list, 
 
 def density_hybrid_pedigree(which_migration, migration_list, T_PED, which_pop, D_model, which_L, bins, mmat_f, mmat_m,
                             rrr_f, rrr_m, is_X_chr, is_X_chr_male, density_function):
-    bins = np.asarray(bins)
-    if ~np.any(np.isin(bins, which_L)):  # Add L to the bins vector
-        bins = np.append(bins, which_L)
-    bins = bins[bins <= which_L]  # Truncate to [0, L], where the distribution is supported
-    bins = np.unique(np.sort(bins))
+    
+    if density_function:
+        bins = np.asarray(bins)
+        if ~np.any(np.isin(bins, which_L)):  # Add L to the bins vector
+            bins = np.append(bins, which_L)
+        bins = bins[bins <= which_L]  # Truncate to [0, L], where the distribution is supported
+        bins = np.unique(np.sort(bins))
 
     ancestral_setting = np.asarray(migration_list[which_migration])
     ETL_m = None
     if np.all(ancestral_setting == which_pop + 1):
         newbins = bins
         counts_f = np.zeros(len(bins))
-        counts_f[-1] = 1
+        counts_f[bins >= which_L] = 1
         ETL_f = which_L
         counts_m = np.zeros(len(bins))
-        counts_m[-1] = 1
+        counts_m[bins >= which_L] = 1
         ETL_m = which_L
     else:
         PhT_ped = PhTDioecious(migration_matrix_f=mmat_f, migration_matrix_m=mmat_m, rho_f=rrr_f, rho_m=rrr_m,
@@ -149,7 +151,7 @@ def density_hybrid_pedigree(which_migration, migration_list, T_PED, which_pop, D
                                TPED=T_PED, setting_TP=ancestral_setting)
         if np.all(PhT_ped.source_populations_f == which_pop):
             counts_f = np.zeros(len(bins))
-            counts_f[-1] = 1
+            counts_f[bins >= which_L] = 1
             ETL_f = which_L
         elif np.all(PhT_ped.source_populations_f != which_pop) or np.all(np.isnan(PhT_ped.source_populations_f)):
             counts_f = np.nan * bins
@@ -160,7 +162,7 @@ def density_hybrid_pedigree(which_migration, migration_list, T_PED, which_pop, D
                                                                                             return_only=1, freq=False, hybrid_ped=True)
         if np.all(PhT_ped.source_populations_m == which_pop):
             counts_m = np.zeros(len(bins))
-            counts_m[-1] = 1
+            counts_m[bins >= which_L] = 1
             ETL_m = which_L
         elif np.all(PhT_ped.source_populations_m != which_pop) or np.all(np.isnan(PhT_ped.source_populations_m)):
             counts_m = np.nan * bins
@@ -175,9 +177,8 @@ def density_hybrid_pedigree(which_migration, migration_list, T_PED, which_pop, D
             else:
                 counts_m = np.ones(len(bins))
                 ETL_m = np.nan
-    densities_per_p_m = counts_m  #*ped_probs_m[ped_probs_m[:,0] == which_migration, 1]
-    densities_per_p_f = counts_f  #*ped_probs_f[ped_probs_f[:,0] == which_migration, 1]
-    return densities_per_p_f, densities_per_p_m, which_migration, ETL_f, ETL_m
+    
+    return counts_f, counts_m, which_migration, ETL_f, ETL_m
 
 
 def hybrid_pedigree_distribution(mig_matrix_f, mig_matrix_m, L, bingrid, whichpop, TP=2, Dioecious_model='DC',
@@ -246,7 +247,8 @@ def hybrid_pedigree_distribution(mig_matrix_f, mig_matrix_m, L, bingrid, whichpo
     array will have length len(bins)-1.     
     """
     
-    
+    if not density:
+        freq = True
     
     if not np.isin(Dioecious_model, ['DF', 'DC']):
         raise Exception('The Dioecious model must be one in DF, DC.')
@@ -333,7 +335,7 @@ def hybrid_pedigree_distribution(mig_matrix_f, mig_matrix_m, L, bingrid, whichpo
         bins = np.unique(np.sort(bins))
 
     # Remove pedigrees that yield space states with only absorbing states
-
+    
     mig_out_f = [den[2] for den in densities_list if np.any(np.isnan(den[0]))]
     mig_out_m = [den[2] for den in densities_list if np.any(np.isnan(den[1]))]
 
@@ -345,6 +347,7 @@ def hybrid_pedigree_distribution(mig_matrix_f, mig_matrix_m, L, bingrid, whichpo
     data_prob_f = data_prob_f[~data_prob_f.which_ancestral.isin(mig_out_f)]
     prob_list_f = data_prob_f.groupby(['which_ancestral']).sum().reset_index().to_numpy()
     prob_list_f[:, 1] = prob_list_f[:, 1] / np.sum(prob_list_f[:, 1])
+    
     if X_chr and X_chr_male:
         final_density = np.sum(np.array([l[0] * prob_list_f[prob_list_f[:, 0] == l[2], 1] for l in densities_list if
                                          np.isin(l[2], prob_list_f[:, 0])]), axis=0)

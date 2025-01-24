@@ -384,7 +384,7 @@ class PhaseTypeDistribution:
         Returns
         ----------
         npt.ArrayLike
-            If density is True, the corrected bins grid as described in Notes. Else, the user-specified bins.
+            If density is True, the corrected bins grid as described in Notes. Else, nothing is returned here.
         npt.ArrayLike
             If density is True, the PhT density evaluated on the corrected bins grid. Returned on the frequency scale if freq = True. 
             If density is False, the histogram values on the intervals defined by bins.
