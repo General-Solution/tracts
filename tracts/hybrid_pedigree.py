@@ -140,10 +140,10 @@ def density_hybrid_pedigree(which_migration, migration_list, T_PED, which_pop, D
     if np.all(ancestral_setting == which_pop + 1):
         newbins = bins
         counts_f = np.zeros(len(bins))
-        counts_f[bins >= which_L] = 1
+        counts_f[np.asarray(bins) >= which_L] = 1
         ETL_f = which_L
         counts_m = np.zeros(len(bins))
-        counts_m[bins >= which_L] = 1
+        counts_m[np.asarray(bins) >= which_L] = 1
         ETL_m = which_L
     else:
         PhT_ped = PhTDioecious(migration_matrix_f=mmat_f, migration_matrix_m=mmat_m, rho_f=rrr_f, rho_m=rrr_m,
@@ -151,10 +151,10 @@ def density_hybrid_pedigree(which_migration, migration_list, T_PED, which_pop, D
                                TPED=T_PED, setting_TP=ancestral_setting)
         if np.all(PhT_ped.source_populations_f == which_pop):
             counts_f = np.zeros(len(bins))
-            counts_f[bins >= which_L] = 1
+            counts_f[np.asarray(bins) >= which_L] = 1
             ETL_f = which_L
         elif np.all(PhT_ped.source_populations_f != which_pop) or np.all(np.isnan(PhT_ped.source_populations_f)):
-            counts_f = np.nan * bins
+            counts_f = np.nan * np.asarray(bins)
             ETL_f = np.nan
         else:
             newbins, counts_f, ETL_f = PhaseTypeDistribution.tractlength_histogram_windowed(PhT_ped, which_pop, bins,
@@ -162,10 +162,10 @@ def density_hybrid_pedigree(which_migration, migration_list, T_PED, which_pop, D
                                                                                             return_only=1, freq=False, hybrid_ped=True)
         if np.all(PhT_ped.source_populations_m == which_pop):
             counts_m = np.zeros(len(bins))
-            counts_m[bins >= which_L] = 1
+            counts_m[np.asarray(bins) >= which_L] = 1
             ETL_m = which_L
         elif np.all(PhT_ped.source_populations_m != which_pop) or np.all(np.isnan(PhT_ped.source_populations_m)):
-            counts_m = np.nan * bins
+            counts_m = np.nan * np.asarray(bins)
             ETL_m = np.nan
         else:
             if not is_X_chr_male:
