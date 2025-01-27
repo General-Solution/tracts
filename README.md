@@ -7,7 +7,11 @@ multiple populations can be modeled.
 
 Documentation
 ==============
-You can find the documentation for this project [here](https://gravellab.github.io/tracts/)
+You can find the documentation for this project [here](https://gravellab.github.io/tracts/).
+
+Citing
+==============
+If you've this software, please consider citing [this paper](https://pubmed.ncbi.nlm.nih.gov/22491189/).
 
 Changes in Tracts 2
 ========
