@@ -38,13 +38,14 @@ def test():
 
 
 def test_2(pp_px_yaml_path):
+    # TODO: Fix the test
     model = ParametrizedDemography.load_from_YAML(pp_px_yaml_path)
     migration_matrices = model.get_migration_matrices([0.2, 4, 0.375, 3])
     m = migration_matrices[0]
     print(m)
     print(model.proportions_from_matrix(m))
     print(model.free_params)
-    model.fix_ancestry_proportions('r', [0.5, 0.5])
+    model.fix_ancestry_proportions('R', [0.5, 0.5])
     print(model.params_fixed_by_ancestry)
     model.get_migration_matrices([0.2, 4, 0.375])
 

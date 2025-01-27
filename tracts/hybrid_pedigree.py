@@ -4,14 +4,15 @@
 Phase-type conditioned to pedigree
 """
 
-from tracts.phase_type_distribution import PhaseTypeDistribution, PhTDioecious
+import itertools
+import warnings
+from functools import partial
 
 import numpy as np
-import itertools
-from joblib import Parallel, delayed
-from functools import partial
 import pandas as pd
-import warnings
+from joblib import Parallel, delayed
+
+from tracts.phase_type_distribution import PhTDioecious
 
 warnings.filterwarnings("ignore")
 
@@ -36,15 +37,12 @@ def get_pedigree(T):
 def generate_trees(current_gen, max_gen, N, migrants_at_last_gen=True):
     if current_gen > max_gen:
         return [[]]
-
     trees = []
-
     if current_gen == max_gen:
         # In the last generation, nodes must have values in [1, ..., N]
         start = 1 if migrants_at_last_gen else 0
         for value in range(start, N + 1):
             trees.append([value, None, None])
-
     else:
         # Node can take value 0 (expand further)
         for left_subtree in generate_trees(current_gen + 1, max_gen, N, migrants_at_last_gen):
@@ -54,7 +52,6 @@ def generate_trees(current_gen, max_gen, N, migrants_at_last_gen=True):
         # Node can take values 1, ..., N (branch stops)
         for value in range(1, N + 1):
             trees.append([value, None, None])
-
     return trees
 
 
@@ -155,9 +152,10 @@ def density_hybrid_pedigree(which_migration, migration_list, T_PED, which_pop, D
             counts_f = np.nan * bins
             ETL_f = np.nan
         else:
-            newbins, counts_f, ETL_f = PhaseTypeDistribution.tractlength_histogram_windowed(PhT_ped, which_pop, bins,
-                                                                                            L=which_L, density=density_function,
-                                                                                            return_only=1, freq=False, hybrid_ped=True)
+            newbins, counts_f, ETL_f = PhT_ped.tractlength_histogram_windowed(population_number=which_pop, bins=bins,
+                                                                              L=which_L, density=density_function,
+                                                                              return_only=1, freq=False,
+                                                                              hybrid_ped=True)
         if np.all(PhT_ped.source_populations_m == which_pop):
             counts_m = np.zeros(len(bins))
             counts_m[-1] = 1
@@ -167,11 +165,12 @@ def density_hybrid_pedigree(which_migration, migration_list, T_PED, which_pop, D
             ETL_m = np.nan
         else:
             if not is_X_chr_male:
-                newbins, counts_m, ETL_m = PhaseTypeDistribution.tractlength_histogram_windowed(PhT_ped, which_pop,
-                                                                                                bins, L=which_L,
-                                                                                                density=density_function,
-                                                                                                return_only=0,
-                                                                                                freq=False, hybrid_ped=True)
+                newbins, counts_m, ETL_m = PhT_ped.tractlength_histogram_windowed(population_number=which_pop,
+                                                                                  bins=bins, L=which_L,
+                                                                                  density=density_function,
+                                                                                  return_only=0,
+                                                                                  freq=False, hybrid_ped=True
+                                                                                  )
             else:
                 counts_m = np.ones(len(bins))
                 ETL_m = np.nan
@@ -262,7 +261,8 @@ def Ped_DF_density(mig_matrix_f, mig_matrix_m, TP, L, bingrid, whichpop, Dioecio
     print('-------------------------------------------------------------------\n')
     print("".join(['Done!\n']))
     print('-------------------------------------------------------------------\n')
-    
+
+    bins = None
     if density:
         bins = np.asarray(bingrid)
         if ~np.any(np.isin(bins, L)):  # Add L to the bins vector
@@ -302,5 +302,4 @@ def Ped_DF_density(mig_matrix_f, mig_matrix_m, TP, L, bingrid, whichpop, Dioecio
         scale = 2 * t0_proportions[whichpop] * L / Exp if freq else 1
     if density:
         return bins, final_density*scale
-    else:
-        return bingrid, np.real(np.diff(final_density)*scale)
+    return bingrid, np.real(np.diff(final_density)*scale)
