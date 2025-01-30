@@ -33,6 +33,11 @@ def migration_matrix_D():
     return numpy.array([[0, 0], [0, 0], [0, 0.3], [1, 0]])
 
 
+@pytest.fixture
+def migration_matrix_E():
+    return numpy.array([[0, 0], [0, 0], [0.7, 0.3]])
+
+
 # TODO: The test fails with migration_matrix_D
 @pytest.mark.parametrize("data", ["migration_matrix_A", "migration_matrix_B",
                                   "migration_matrix_C", "migration_matrix_D"])

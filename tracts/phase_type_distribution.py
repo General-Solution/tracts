@@ -9,6 +9,8 @@ from scipy import sparse
 from scipy.special import gammaln
 from sklearn.preprocessing import normalize
 
+from tracts.util import all_same_sign
+
 warnings.filterwarnings("ignore")
 
 
@@ -657,12 +659,18 @@ class PhTMonoecious(PhaseTypeDistribution):
                          self.all_states[0]])
 
     def get_equilibrium_distribution(self):
-        transition_matrix_eigs = np.linalg.eig(self.full_transition_matrix.transpose())
+        transposed_transition_matrix = self.full_transition_matrix.transpose()
+        transition_matrix_eigs = np.linalg.eig(transposed_transition_matrix)
+        cond_num = np.linalg.cond(transposed_transition_matrix)
+        print("Condition Number:", cond_num)
         try:
             result_vector = [eigenvector for eigenvalue, eigenvector in
                              zip(transition_matrix_eigs[0], np.transpose(transition_matrix_eigs[1])) if
                              np.isclose(eigenvalue, 0)][0]
             result_vector = result_vector / np.linalg.norm(result_vector, ord=1)
+            # Verify that all the entries have the same sign
+            assert all_same_sign(result_vector)
+            result_vector *= np.sign(result_vector[0])
             return result_vector
         except IndexError as _:
             raise Exception(
